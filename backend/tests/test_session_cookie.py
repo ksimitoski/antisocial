@@ -105,3 +105,33 @@ def test_backend_login_remember_me_token_expiration(client):
 
     # Expire time for remember_me should be significantly greater than normal login
     assert payload_remember["exp"] > payload_normal["exp"] + 86400 * 30
+
+
+def test_forwarded_ip_recorded_in_session(client):
+    import time
+    username = f"ipuser_{int(time.time())}"
+    email = f"{username}@example.com"
+    password = "SecurePassword123!"
+
+    reg = client.post("/api/auth/register", json={
+        "username": username,
+        "email": email,
+        "password": password
+    })
+    token = reg.json()["token"]
+    client.get(f"/api/auth/confirm?token={token}")
+
+    origin_ip = "203.0.113.195"
+    res = client.post("/api/auth/login", json={
+        "username_or_email": username,
+        "password": password
+    }, headers={"X-Forwarded-For": f"{origin_ip}, 10.0.0.1"})
+
+    assert res.status_code == 200
+    access_token = res.json()["access_token"]
+
+    sess_res = client.get("/api/auth/sessions", headers={"Authorization": f"Bearer {access_token}"})
+    assert sess_res.status_code == 200
+    sessions = sess_res.json()
+    assert len(sessions) > 0
+    assert sessions[0]["ip_address"] == origin_ip

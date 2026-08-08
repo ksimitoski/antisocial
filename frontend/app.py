@@ -9,11 +9,39 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=3650)
 
 BACKEND_URL = os.environ.get("BACKEND_INTERNAL_URL", "http://backend:8000")
 
-def get_auth_headers():
+def get_auth_headers(extra_headers=None):
+    headers = {}
+    if extra_headers:
+        headers.update(extra_headers)
+
     token = session.get("access_token")
-    if token:
-        return {"Authorization": f"Bearer {token}"}
-    return {}
+    if token and "Authorization" not in headers:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        if request:
+            forwarded_for = request.headers.get("X-Forwarded-For")
+            real_ip = request.headers.get("X-Real-IP")
+            user_agent = request.headers.get("User-Agent")
+
+            if forwarded_for:
+                headers["X-Forwarded-For"] = forwarded_for
+            elif real_ip:
+                headers["X-Forwarded-For"] = real_ip
+            elif request.remote_addr:
+                headers["X-Forwarded-For"] = request.remote_addr
+
+            if real_ip:
+                headers["X-Real-IP"] = real_ip
+            elif request.remote_addr:
+                headers["X-Real-IP"] = request.remote_addr
+
+            if user_agent:
+                headers["User-Agent"] = user_agent
+    except Exception:
+        pass
+
+    return headers
 
 @app.before_request
 def check_session_validity():
@@ -44,7 +72,7 @@ def inject_user():
     # Fetch site settings for banner/page text display & custom accent color
     site_settings = {"banner_text": "", "page_text": "", "accent_color": "#dc2626"}
     try:
-        s_res = requests.get(f"{BACKEND_URL}/api/admin/settings", timeout=2)
+        s_res = requests.get(f"{BACKEND_URL}/api/admin/settings", headers=get_auth_headers(), timeout=2)
         if s_res.status_code == 200:
             site_settings = s_res.json()
     except Exception:
@@ -85,7 +113,7 @@ def login():
             if totp_code and totp_code.strip():
                 payload["totp_code"] = totp_code.strip()
 
-            res = requests.post(f"{BACKEND_URL}/api/auth/login", json=payload)
+            res = requests.post(f"{BACKEND_URL}/api/auth/login", json=payload, headers=get_auth_headers())
             if res.status_code == 200:
                 data = res.json()
                 if remember_me:
@@ -100,7 +128,7 @@ def login():
 
                 # Fetch user profile to cache avatar_url in session
                 try:
-                    p_res = requests.get(f"{BACKEND_URL}/api/users/profile/{data['username']}", headers={"Authorization": f"Bearer {data['access_token']}"})
+                    p_res = requests.get(f"{BACKEND_URL}/api/users/profile/{data['username']}", headers=get_auth_headers({"Authorization": f"Bearer {data['access_token']}"}))
                     if p_res.status_code == 200:
                         session["avatar_url"] = p_res.json().get("profile", {}).get("avatar_url")
                 except Exception:
@@ -132,7 +160,7 @@ def register():
                 "username": username,
                 "email": email,
                 "password": password
-            })
+            }, headers=get_auth_headers())
             if res.status_code == 201:
                 data = res.json()
                 flash(data.get("message", "User registered successfully. Please check your email to verify your account."), "success")
@@ -153,7 +181,7 @@ def confirm_email():
         return redirect(url_for("login"))
 
     try:
-        res = requests.get(f"{BACKEND_URL}/api/auth/confirm", params={"token": token})
+        res = requests.get(f"{BACKEND_URL}/api/auth/confirm", params={"token": token}, headers=get_auth_headers())
         if res.status_code == 200:
             flash("Your email has been confirmed! You can now log in.", "success")
         else:
@@ -199,7 +227,7 @@ def settings():
     try:
         res = requests.get(
             f"{BACKEND_URL}/api/users/profile/{session.get('username')}",
-            headers={"Authorization": f"Bearer {session.get('access_token')}"}
+            headers=get_auth_headers()
         )
         if res.status_code == 200:
             profile_data = res.json().get("profile", {})
@@ -244,7 +272,7 @@ def admin():
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 def api_proxy(path):
     url = f"{BACKEND_URL}/api/{path}"
-    headers = {}
+    headers = get_auth_headers()
     
     if "Authorization" in request.headers:
         headers["Authorization"] = request.headers["Authorization"]
