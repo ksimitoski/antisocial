@@ -135,3 +135,38 @@ def test_forwarded_ip_recorded_in_session(client):
     sessions = sess_res.json()
     assert len(sessions) > 0
     assert sessions[0]["ip_address"] == origin_ip
+
+
+def test_frontend_2fa_redirect_flow():
+    flask_app.config['TESTING'] = True
+    with flask_app.test_client() as client:
+        # Mock 403 response requiring 2FA
+        mock_403 = mock.MagicMock()
+        mock_403.status_code = 403
+        mock_403.json.return_value = {
+            "detail": "Two-factor authentication code required. Please enter your 6-digit authenticator code or recovery code."
+        }
+
+        # Mock 200 response upon valid 2FA code submission
+        mock_200 = mock.MagicMock()
+        mock_200.status_code = 200
+        mock_200.json.return_value = {
+            "access_token": "valid_2fa_token",
+            "user_id": 5,
+            "username": "totpuser",
+            "role": "user"
+        }
+
+        with mock.patch("requests.post", return_value=mock_403):
+            res_login = client.post("/login", data={
+                "username_or_email": "totpuser",
+                "password": "Password123!"
+            })
+            assert res_login.status_code == 302
+            assert "/verify-2fa" in res_login.location
+
+        with mock.patch("requests.post", return_value=mock_200), \
+             mock.patch("requests.get", return_value=mock_200):
+            res_2fa = client.post("/verify-2fa", data={"totp_code": "123456"})
+            assert res_2fa.status_code == 302
+            assert "/feed" in res_2fa.location

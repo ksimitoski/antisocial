@@ -46,7 +46,7 @@ def get_auth_headers(extra_headers=None):
 @app.before_request
 def check_session_validity():
     # Public endpoints that don't require an active session check
-    exempt_routes = ['login', 'register', 'confirm_email', 'reset_password_page', 'forgot_password_page', 'static', 'index', 'view_post']
+    exempt_routes = ['login', 'register', 'confirm_email', 'reset_password_page', 'forgot_password_page', 'verify_2fa', 'static', 'index', 'view_post']
     if request.endpoint in exempt_routes or request.endpoint is None:
         return
 
@@ -102,7 +102,6 @@ def login():
         username_or_email = request.form.get("username_or_email")
         password = request.form.get("password")
         remember_me = request.form.get("remember_me")
-        totp_code = request.form.get("totp_code")
 
         try:
             payload = {
@@ -110,8 +109,6 @@ def login():
                 "password": password,
                 "remember_me": bool(remember_me)
             }
-            if totp_code and totp_code.strip():
-                payload["totp_code"] = totp_code.strip()
 
             res = requests.post(f"{BACKEND_URL}/api/auth/login", json=payload, headers=get_auth_headers())
             if res.status_code == 200:
@@ -139,6 +136,14 @@ def login():
                     return redirect(next_url)
                 return redirect(url_for("feed"))
 
+            elif res.status_code == 403 and "Two-factor authentication code required" in str(res.json().get("detail", "")):
+                session["pending_2fa"] = {
+                    "username_or_email": username_or_email,
+                    "password": password,
+                    "remember_me": bool(remember_me),
+                    "next_url": next_url
+                }
+                return redirect(url_for("verify_2fa"))
             else:
                 detail = res.json().get("detail", "Login failed")
                 flash(detail, "danger")
@@ -146,6 +151,64 @@ def login():
             flash(f"Connection error to API: {str(e)}", "danger")
 
     return render_template("login.html", next_url=next_url)
+
+
+@app.route("/verify-2fa", methods=["GET", "POST"])
+def verify_2fa():
+    pending = session.get("pending_2fa")
+    if not pending:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        totp_code = request.form.get("totp_code", "").strip()
+        if not totp_code:
+            flash("Please enter your 2FA verification code.", "warning")
+            return render_template("verify_2fa.html")
+
+        payload = {
+            "username_or_email": pending["username_or_email"],
+            "password": pending["password"],
+            "remember_me": pending.get("remember_me", False),
+            "totp_code": totp_code
+        }
+
+        try:
+            res = requests.post(f"{BACKEND_URL}/api/auth/login", json=payload, headers=get_auth_headers())
+            if res.status_code == 200:
+                data = res.json()
+                remember_me = pending.get("remember_me", False)
+                next_url = pending.get("next_url")
+                session.pop("pending_2fa", None)
+
+                if remember_me:
+                    session.permanent = True
+                else:
+                    session.permanent = False
+
+                session["access_token"] = data["access_token"]
+                session["user_id"] = data["user_id"]
+                session["username"] = data["username"]
+                session["role"] = data.get("role", "user")
+                session["is_admin"] = data.get("is_admin", False) or (session["role"] == "admin")
+
+                try:
+                    p_res = requests.get(f"{BACKEND_URL}/api/users/profile/{data['username']}", headers=get_auth_headers({"Authorization": f"Bearer {data['access_token']}"}))
+                    if p_res.status_code == 200:
+                        session["avatar_url"] = p_res.json().get("profile", {}).get("avatar_url")
+                except Exception:
+                    pass
+
+                flash("Two-factor authentication verified! Welcome back.", "success")
+                if next_url and next_url.startswith("/"):
+                    return redirect(next_url)
+                return redirect(url_for("feed"))
+            else:
+                detail = res.json().get("detail", "Invalid 2FA verification code.")
+                flash(detail, "danger")
+        except Exception as e:
+            flash(f"Connection error to API: {str(e)}", "danger")
+
+    return render_template("verify_2fa.html")
 
 
 @app.route("/register", methods=["GET", "POST"])

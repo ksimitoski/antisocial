@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Two-Factor Authentication - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 450px; margin: 3rem auto;">
+  <div class="card" style="text-align: center;">
+    <div style="font-size: 3rem; margin-bottom: 0.5rem; color: var(--primary-red);">🛡️</div>
+    <h2 style="margin-bottom: 0.5rem; color: var(--primary-red);">Two-Factor Verification</h2>
+    <p style="font-size: 0.92rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+      Enter the 6-digit verification code from your authenticator app or one of your emergency recovery codes.
+    </p>
+
+    <form method="POST" action="{{ url_for('verify_2fa') }}">
+      <div class="form-group" style="text-align: left;">
+        <label for="totp_code" style="font-weight: 600;">Authenticator / Recovery Code</label>
+        <input type="text" id="totp_code" name="totp_code" class="form-control" required autofocus placeholder="e.g. 123456 or ABCD-EFGH" maxlength="16" autocomplete="one-time-code" style="font-size: 1.1rem; letter-spacing: 2px; text-align: center;">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Verify & Log In</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
+      <a href="{{ url_for('login') }}" style="color: var(--text-muted); text-decoration: underline;">← Back to Log In</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
