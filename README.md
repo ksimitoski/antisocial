@@ -42,25 +42,25 @@
 
 ```mermaid
 graph TD
-    Client[Browser Client - Web Page UI]
+    Client["Browser Client - Web Page UI"]
     
-    subgraph Frontend Container (Flask Service - Port 5000)
-        Flask[Flask Gateway App]
-        Jinja[Jinja2 HTML5 Templates]
-        CSS[Crimson Red CSS Design System]
-        JS[Reactive UI JS / Media Handler]
+    subgraph Frontend["Frontend Container (Flask Service - Port 5000)"]
+        Flask["Flask Gateway App"]
+        Jinja["Jinja2 HTML5 Templates"]
+        CSS["Crimson Red CSS Design System"]
+        JS["Reactive UI JS / Media Handler"]
     end
 
-    subgraph Backend Container (FastAPI Service - Port 8000)
-        FastAPI[FastAPI REST Engine]
-        Auth[JWT & Auth System]
-        PrivacyEngine[Privacy & Visibility Evaluator]
-        Uploads[Media Storage Handler]
-        AdminModule[Admin User Manager]
+    subgraph Backend["Backend Container (FastAPI Service - Port 8000)"]
+        FastAPI["FastAPI REST Engine"]
+        Auth["JWT & Auth System"]
+        PrivacyEngine["Privacy & Visibility Evaluator"]
+        Uploads["Media Storage Handler"]
+        AdminModule["Admin User Manager"]
     end
 
-    subgraph Database Layer (Volume Mounted)
-        SQLite[(SQLite DB - antisocial.db)]
+    subgraph Database["Database Layer (Volume Mounted)"]
+        SQLite[("SQLite DB - antisocial.db")]
     end
 
     Client -->|HTTP Requests| Flask
