@@ -2,7 +2,7 @@ import datetime
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum as SQLEnum, UniqueConstraint
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from app.database import Base
 
 class User(Base):
@@ -24,6 +24,12 @@ class User(Base):
     public_key = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    @validates('username')
+    def validate_username(self, key, value):
+        if value:
+            return value.lower().strip()
+        return value
 
 
     # Cascading relationships - when user is deleted, all related items are immediately removed

@@ -34,7 +34,7 @@ def get_user_profile(
     db: Session = Depends(get_db),
     current_user: Optional[models.User] = Depends(auth.get_current_user_optional)
 ):
-    target_user = db.query(models.User).filter(models.User.username == username).first()
+    target_user = db.query(models.User).filter(models.User.username == username.strip().lower()).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -322,9 +322,9 @@ def send_friend_request(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    identifier = target_username.strip()
+    identifier = target_username.strip().lstrip('@').lower()
     target_user = db.query(models.User).filter(
-        (models.User.username == identifier) | (models.User.email == identifier.lower())
+        (models.User.username == identifier) | (models.User.email == identifier)
     ).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -432,7 +432,7 @@ def toggle_follow_user(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    target_user = db.query(models.User).filter(models.User.username == username).first()
+    target_user = db.query(models.User).filter(models.User.username == username.strip().lower()).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 

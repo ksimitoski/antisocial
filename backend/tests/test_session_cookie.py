@@ -170,3 +170,34 @@ def test_frontend_2fa_redirect_flow():
             res_2fa = client.post("/verify-2fa", data={"totp_code": "123456"})
             assert res_2fa.status_code == 302
             assert "/feed" in res_2fa.location
+
+
+def test_case_insensitive_username_handling(client):
+    import time
+    mixed_username = f"MixedCase_{int(time.time())}"
+    expected_lower = mixed_username.lower()
+    email = f"{expected_lower}@example.com"
+    password = "SecurePassword123!"
+
+    # Register with mixed case username
+    reg_res = client.post("/api/auth/register", json={
+        "username": mixed_username,
+        "email": email,
+        "password": password
+    })
+    assert reg_res.status_code == 201
+    token = reg_res.json()["token"]
+    client.get(f"/api/auth/confirm?token={token}")
+
+    # Login with UPPERCASE username
+    login_res = client.post("/api/auth/login", json={
+        "username_or_email": mixed_username.upper(),
+        "password": password
+    })
+    assert login_res.status_code == 200
+    assert login_res.json()["username"] == expected_lower
+
+    # Fetch profile with mixed case URL parameter
+    prof_res = client.get(f"/api/users/profile/{mixed_username}")
+    assert prof_res.status_code == 200
+    assert prof_res.json()["username"] == expected_lower

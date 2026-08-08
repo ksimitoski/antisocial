@@ -1,11 +1,18 @@
 import datetime
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from typing import Optional, List
 
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
+
+    @field_validator('username')
+    @classmethod
+    def lowercase_username(cls, v: str) -> str:
+        if v:
+            return v.lower().strip()
+        return v
 
 class UserLogin(BaseModel):
     username_or_email: str

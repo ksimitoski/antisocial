@@ -109,9 +109,10 @@ def login(credentials: schemas.UserLogin, request: Request, db: Session = Depend
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("User-Agent", "Unknown")[:250]
 
+    clean_identifier = credentials.username_or_email.strip().lower()
     user = db.query(models.User).filter(
-        (models.User.username == credentials.username_or_email) |
-        (models.User.email == credentials.username_or_email)
+        (models.User.username == clean_identifier) |
+        (models.User.email == clean_identifier)
     ).first()
 
     if not user or not auth.verify_password(credentials.password, user.hashed_password):

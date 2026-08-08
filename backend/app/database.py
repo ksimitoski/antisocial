@@ -91,6 +91,7 @@ def run_db_migrations(engine_obj):
                     conn.execute(text("ALTER TABLE users ADD COLUMN totp_backup_codes TEXT"))
                 if "public_key" not in user_columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN public_key TEXT"))
+                conn.execute(text("UPDATE users SET username = LOWER(username) WHERE username != LOWER(username)"))
 
         if "posts" in inspector.get_table_names():
             post_columns = [c["name"] for c in inspector.get_columns("posts")]
