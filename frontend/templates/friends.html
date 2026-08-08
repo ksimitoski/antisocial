@@ -8,12 +8,12 @@
     <h2 style="color: var(--primary-red); margin-bottom: 1.5rem;">Friends & Connection Requests</h2>
 
     <!-- Send Friend Request Form -->
-    <div class="send-friend-box" style="margin-bottom: 2rem; padding: 1.25rem 1.5rem; background: var(--bg-color); border: 1.5px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
-      <h3 style="font-size: 1.1rem; margin-bottom: 0.85rem; color: var(--primary-red); display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+    <div class="send-friend-box">
+      <h3 style="font-size: 1.05rem; margin-bottom: 0.85rem; color: var(--primary-red); display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
         ✉️ Send Friend Request
       </h3>
       <form id="send-friend-request-form" onsubmit="handleSendFriendRequest(event)" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-        <input type="text" id="friend-search-input" class="form-control friend-input-prominent" placeholder="Enter username or email address..." required>
+        <input type="text" id="friend-search-input" class="form-control friend-input-lighter" style="flex: 1; min-width: 240px;" placeholder="Enter username or email address..." required>
         <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.4rem; font-weight: 600; padding: 0.75rem 1.4rem;">
           Send Request
         </button>
@@ -25,9 +25,11 @@
       <div style="color: var(--text-muted);">Loading pending requests...</div>
     </div>
 
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div
+      style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
       <h3 style="font-size: 1.1rem; margin: 0;">My Friends List</h3>
-      <input type="text" id="my-friends-search-input" class="form-control" placeholder="🔍 Search my friends..." oninput="filterMyFriendsList()" style="max-width: 260px; padding: 0.35rem 0.75rem; font-size: 0.85rem;" />
+      <input type="text" id="my-friends-search-input" class="form-control" placeholder="🔍 Search my friends..."
+        oninput="filterMyFriendsList()" style="max-width: 260px; padding: 0.35rem 0.75rem; font-size: 0.85rem;" />
     </div>
     <div id="friends-list-container">
       <div style="color: var(--text-muted);">Loading friends list...</div>
@@ -38,34 +40,34 @@
 
 {% block scripts %}
 <script>
-const token = "{{ session.get('access_token') }}";
-let globalFriendsList = [];
+  const token = "{{ session.get('access_token') }}";
+  let globalFriendsList = [];
 
-document.addEventListener('DOMContentLoaded', loadFriends);
+  document.addEventListener('DOMContentLoaded', loadFriends);
 
-async function loadFriends() {
-  try {
-    const res = await fetch('/api/users/friends/list', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+  async function loadFriends() {
+    try {
+      const res = await fetch('/api/users/friends/list', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-    if (!res.ok) return;
+      if (!res.ok) return;
 
-    const data = await res.json();
-    globalFriendsList = data.friends || [];
+      const data = await res.json();
+      globalFriendsList = data.friends || [];
 
-    const pendingBox = document.getElementById('pending-requests-container');
-    if (data.pending_requests.length === 0) {
-      pendingBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No pending friend requests.</p>`;
-    } else {
-      pendingBox.innerHTML = data.pending_requests.map(p => {
-        const initial = p.username ? p.username.charAt(0).toUpperCase() : 'U';
-        const avatarHtml = p.avatar_url
-          ? `<img src="${p.avatar_url}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
-          : `<div class="user-avatar" style="width:38px; height:38px; font-size:0.95rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${initial}</div>`;
-        const displayName = p.display_name || p.username;
+      const pendingBox = document.getElementById('pending-requests-container');
+      if (data.pending_requests.length === 0) {
+        pendingBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No pending friend requests.</p>`;
+      } else {
+        pendingBox.innerHTML = data.pending_requests.map(p => {
+          const initial = p.username ? p.username.charAt(0).toUpperCase() : 'U';
+          const avatarHtml = p.avatar_url
+            ? `<img src="${p.avatar_url}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
+            : `<div class="user-avatar" style="width:38px; height:38px; font-size:0.95rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${initial}</div>`;
+          const displayName = p.display_name || p.username;
 
-        return `
+          return `
           <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; margin-bottom:0.5rem; gap: 0.75rem;">
             <div style="display:flex; align-items:center; gap:0.75rem;">
               <a href="/profile/${p.username}">${avatarHtml}</a>
@@ -80,58 +82,58 @@ async function loadFriends() {
             </div>
           </div>
         `;
-      }).join('');
+        }).join('');
+      }
+
+      filterMyFriendsList();
+    } catch (err) {
+      console.error("Failed to load friends", err);
     }
-
-    filterMyFriendsList();
-  } catch (err) {
-    console.error("Failed to load friends", err);
-  }
-}
-
-function filterMyFriendsList() {
-  const searchInput = document.getElementById('my-friends-search-input');
-  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
-  const filtered = globalFriendsList.filter(f => {
-    if (!query) return true;
-    const username = (f.username || '').toLowerCase();
-    const displayName = (f.display_name || '').toLowerCase();
-    return username.includes(query) || displayName.includes(query);
-  });
-  renderFriendsList(filtered, query);
-}
-
-function renderFriendsList(friends, query = '') {
-  const friendsBox = document.getElementById('friends-list-container');
-  if (!friendsBox) return;
-
-  if (friends.length === 0) {
-    if (query) {
-      friendsBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No friends matching "<strong>${escapeHtml(query)}</strong>".</p>`;
-    } else {
-      friendsBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">You don't have any friends added yet.</p>`;
-    }
-    return;
   }
 
-  friendsBox.innerHTML = friends.map(f => {
-    const initial = f.username ? f.username.charAt(0).toUpperCase() : 'U';
-    const avatarHtml = f.avatar_url
-      ? `<img src="${f.avatar_url}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
-      : `<div class="user-avatar" style="width:38px; height:38px; font-size:0.95rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${initial}</div>`;
-    const displayName = f.display_name || f.username;
-    const statusVal = (f.online_status || 'unknown').toLowerCase();
-    let statusBadgeText = '❓ Unknown';
-    let statusDotClass = 'unknown';
-    if (statusVal === 'online') {
-      statusBadgeText = '🟢 Online';
-      statusDotClass = 'online';
-    } else if (statusVal === 'offline') {
-      statusBadgeText = '⚪ Offline';
-      statusDotClass = 'offline';
+  function filterMyFriendsList() {
+    const searchInput = document.getElementById('my-friends-search-input');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const filtered = globalFriendsList.filter(f => {
+      if (!query) return true;
+      const username = (f.username || '').toLowerCase();
+      const displayName = (f.display_name || '').toLowerCase();
+      return username.includes(query) || displayName.includes(query);
+    });
+    renderFriendsList(filtered, query);
+  }
+
+  function renderFriendsList(friends, query = '') {
+    const friendsBox = document.getElementById('friends-list-container');
+    if (!friendsBox) return;
+
+    if (friends.length === 0) {
+      if (query) {
+        friendsBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">No friends matching "<strong>${escapeHtml(query)}</strong>".</p>`;
+      } else {
+        friendsBox.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">You don't have any friends added yet.</p>`;
+      }
+      return;
     }
 
-    return `
+    friendsBox.innerHTML = friends.map(f => {
+      const initial = f.username ? f.username.charAt(0).toUpperCase() : 'U';
+      const avatarHtml = f.avatar_url
+        ? `<img src="${f.avatar_url}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
+        : `<div class="user-avatar" style="width:38px; height:38px; font-size:0.95rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${initial}</div>`;
+      const displayName = f.display_name || f.username;
+      const statusVal = (f.online_status || 'unknown').toLowerCase();
+      let statusBadgeText = '❓ Unknown';
+      let statusDotClass = 'unknown';
+      if (statusVal === 'online') {
+        statusBadgeText = '🟢 Online';
+        statusDotClass = 'online';
+      } else if (statusVal === 'offline') {
+        statusBadgeText = '⚪ Offline';
+        statusDotClass = 'offline';
+      }
+
+      return `
       <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; margin-bottom:0.5rem; gap:0.75rem;">
         <div style="display:flex; align-items:center; gap:0.75rem;">
           <a href="/profile/${f.username}" class="avatar-container">
@@ -146,63 +148,63 @@ function renderFriendsList(friends, query = '') {
         <a href="/profile/${f.username}" class="btn btn-secondary btn-sm">View Profile</a>
       </div>
     `;
-  }).join('');
-}
-
-async function respondFriend(id, action) {
-  try {
-    const res = await fetch(`/api/users/friends/respond/${id}?action=${action}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      loadFriends();
-    }
-  } catch (err) {
-    console.error(err);
+    }).join('');
   }
-}
 
-async function handleSendFriendRequest(e) {
-  e.preventDefault();
-  const input = document.getElementById('friend-search-input');
-  const query = input ? input.value.trim() : '';
-  if (!query) return;
-
-  try {
-    const res = await fetch(`/api/users/friends/request/${encodeURIComponent(query)}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      if (typeof showCustomAlert === 'function') {
-        showCustomAlert(data.message || "Friend request sent successfully!");
-      } else {
-        alert(data.message || "Friend request sent successfully!");
+  async function respondFriend(id, action) {
+    try {
+      const res = await fetch(`/api/users/friends/respond/${id}?action=${action}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        loadFriends();
       }
-      input.value = '';
-      loadFriends();
-    } else {
-      if (typeof showCustomAlert === 'function') {
-        showCustomAlert(data.detail || "Failed to send friend request.");
-      } else {
-        alert(data.detail || "Failed to send friend request.");
-      }
-    }
-  } catch (err) {
-    console.error(err);
-    if (typeof showCustomAlert === 'function') {
-      showCustomAlert("Error sending friend request.");
-    } else {
-      alert("Error sending friend request.");
+    } catch (err) {
+      console.error(err);
     }
   }
-}
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+  async function handleSendFriendRequest(e) {
+    e.preventDefault();
+    const input = document.getElementById('friend-search-input');
+    const query = input ? input.value.trim() : '';
+    if (!query) return;
+
+    try {
+      const res = await fetch(`/api/users/friends/request/${encodeURIComponent(query)}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (typeof showCustomAlert === 'function') {
+          showCustomAlert(data.message || "Friend request sent successfully!");
+        } else {
+          alert(data.message || "Friend request sent successfully!");
+        }
+        input.value = '';
+        loadFriends();
+      } else {
+        if (typeof showCustomAlert === 'function') {
+          showCustomAlert(data.detail || "Failed to send friend request.");
+        } else {
+          alert(data.detail || "Failed to send friend request.");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      if (typeof showCustomAlert === 'function') {
+        showCustomAlert("Error sending friend request.");
+      } else {
+        alert("Error sending friend request.");
+      }
+    }
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
 </script>
 {% endblock %}
