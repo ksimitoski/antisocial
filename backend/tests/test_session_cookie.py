@@ -201,3 +201,28 @@ def test_case_insensitive_username_handling(client):
     prof_res = client.get(f"/api/users/profile/{mixed_username}")
     assert prof_res.status_code == 200
     assert prof_res.json()["username"] == expected_lower
+
+
+def test_register_password_confirmation(client):
+    import time
+    username = f"passconf_{int(time.time())}"
+    email = f"{username}@example.com"
+
+    # Mismatched password confirmation should fail (400)
+    res_mismatch = client.post("/api/auth/register", json={
+        "username": username,
+        "email": email,
+        "password": "Password123!",
+        "password_confirm": "MismatchPass999!"
+    })
+    assert res_mismatch.status_code == 400
+    assert "Passwords do not match" in res_mismatch.json().get("detail", "")
+
+    # Matching password confirmation should succeed (201)
+    res_match = client.post("/api/auth/register", json={
+        "username": username,
+        "email": email,
+        "password": "Password123!",
+        "password_confirm": "Password123!"
+    })
+    assert res_match.status_code == 201

@@ -214,15 +214,21 @@ def verify_2fa():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form.get("username")
-        email = request.form.get("email")
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         password = request.form.get("password")
+        password_confirm = request.form.get("password_confirm")
+
+        if password != password_confirm:
+            flash("Passwords do not match. Please ensure both password fields match.", "danger")
+            return render_template("register.html", username=username, email=email)
 
         try:
             res = requests.post(f"{BACKEND_URL}/api/auth/register", json={
                 "username": username,
                 "email": email,
-                "password": password
+                "password": password,
+                "password_confirm": password_confirm
             }, headers=get_auth_headers())
             if res.status_code == 201:
                 data = res.json()
@@ -233,6 +239,8 @@ def register():
                 flash(detail, "danger")
         except Exception as e:
             flash(f"Connection error to API: {str(e)}", "danger")
+
+        return render_template("register.html", username=username, email=email)
 
     return render_template("register.html")
 

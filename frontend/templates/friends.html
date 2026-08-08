@@ -8,14 +8,14 @@
     <h2 style="color: var(--primary-red); margin-bottom: 1.5rem;">Friends & Connection Requests</h2>
 
     <!-- Send Friend Request Form -->
-    <div style="margin-bottom: 2rem; padding: 1.25rem; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-      <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-        ➕ Send Friend Request
+    <div class="send-friend-box" style="margin-bottom: 2rem; padding: 1.25rem 1.5rem; background: var(--bg-color); border: 1.5px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+      <h3 style="font-size: 1.1rem; margin-bottom: 0.85rem; color: var(--primary-red); display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+        ✉️ Send Friend Request
       </h3>
-      <form id="send-friend-request-form" onsubmit="handleSendFriendRequest(event)" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-        <input type="text" id="friend-search-input" class="form-control" style="flex: 1; min-width: 220px;" placeholder="Enter username or email address..." required>
-        <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.3rem;">
-          ✉️ Send Request
+      <form id="send-friend-request-form" onsubmit="handleSendFriendRequest(event)" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+        <input type="text" id="friend-search-input" class="form-control friend-input-prominent" placeholder="Enter username or email address..." required>
+        <button type="submit" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.4rem; font-weight: 600; padding: 0.75rem 1.4rem;">
+          Send Request
         </button>
       </form>
     </div>
