@@ -1631,7 +1631,7 @@ body.messages-page .main-container {
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--input-bg);
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 0.75rem;
   transition: var(--transition);
 }
@@ -1648,6 +1648,8 @@ body.messages-page .main-container {
   padding: 0.4rem 0.65rem;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: calc(var(--radius-md) - 1px);
+  border-top-right-radius: calc(var(--radius-md) - 1px);
   user-select: none;
   flex-wrap: wrap;
 }
@@ -1741,4 +1743,87 @@ body.messages-page .main-container {
   width: 100%;
   max-width: 440px;
   box-shadow: var(--shadow-lg);
+}
+
+/* WYSIWYG Emoji Picker Menu */
+.wysiwyg-emoji-menu-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.wysiwyg-emoji-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.35rem;
+  z-index: 10000;
+  width: 320px;
+  max-width: 88vw;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 0.65rem;
+  display: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.emoji-menu-header {
+  margin-bottom: 0.5rem;
+}
+
+.emoji-search-input {
+  width: 100%;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  outline: none;
+}
+
+.emoji-search-input:focus {
+  border-color: var(--primary-red);
+}
+
+.emoji-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.2rem;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.emoji-item-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.emoji-item-btn:hover {
+  background: var(--bg-color);
+  transform: scale(1.25);
+}
+
+.emoji-hover-footer {
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-weight: 500;
+  min-height: 1.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -880,6 +880,144 @@ function escapeHtmlText(str) {
     .replace(/>/g, '&gt;');
 }
 
+const WYSIWYG_EMOJIS = [
+  // Smileys & Emotions
+  { char: "😀", name: "Grinning Face", keywords: "smile happy joy grin" },
+  { char: "😃", name: "Grinning Face with Big Eyes", keywords: "smile happy joy" },
+  { char: "😄", name: "Grinning Face with Smiling Eyes", keywords: "smile happy joy" },
+  { char: "😁", name: "Beaming Face with Smiling Eyes", keywords: "smile happy grin" },
+  { char: "😆", name: "Grinning Squinting Face", keywords: "laugh haha smile" },
+  { char: "😅", name: "Grinning Face with Sweat", keywords: "sweat phew smile" },
+  { char: "😂", name: "Face with Tears of Joy", keywords: "laugh cry lol tears" },
+  { char: "🤣", name: "Rolling on the Floor Laughing", keywords: "rofl lol laugh" },
+  { char: "😊", name: "Smiling Face with Smiling Eyes", keywords: "smile happy blush" },
+  { char: "😇", name: "Smiling Face with Halo", keywords: "angel halo innocent" },
+  { char: "🥰", name: "Smiling Face with Hearts", keywords: "love heart adore" },
+  { char: "😍", name: "Smiling Face with Heart-Eyes", keywords: "love heart eyes" },
+  { char: "🤩", name: "Star-Struck", keywords: "star excited amazed" },
+  { char: "😘", name: "Face Blowing a Kiss", keywords: "kiss love heart" },
+  { char: "😋", name: "Face Savoring Food", keywords: "yum tasty food" },
+  { char: "😛", name: "Face with Tongue", keywords: "tongue silly playful" },
+  { char: "😜", name: "Winking Face with Tongue", keywords: "wink tongue silly" },
+  { char: "🤪", name: "Zany Face", keywords: "crazy goofy silly" },
+  { char: "🤑", name: "Money-Mouth Face", keywords: "money dollar rich" },
+  { char: "🤗", name: "Hugging Face", keywords: "hug warm friends" },
+  { char: "🤭", name: "Face with Hand Over Mouth", keywords: "oops giggle secret" },
+  { char: "🤫", name: "Shushing Face", keywords: "quiet hush secret" },
+  { char: "🤔", name: "Thinking Face", keywords: "think hmm ponder" },
+  { char: "🤐", name: "Zipper-Mouth Face", keywords: "secret quiet zip" },
+  { char: "🤨", name: "Face with Raised Eyebrow", keywords: "skeptical distrust" },
+  { char: "😐", name: "Neutral Face", keywords: "meh neutral blank" },
+  { char: "😑", name: "Expressionless Face", keywords: "meh expressionless" },
+  { char: "😶", name: "Face Without Mouth", keywords: "silent quiet" },
+  { char: "😏", name: "Smirking Face", keywords: "smirk sly" },
+  { char: "😒", name: "Unamused Face", keywords: "meh bored annoyed" },
+  { char: "🙄", name: "Face with Rolling Eyes", keywords: "eye roll whatever" },
+  { char: "😬", name: "Grimacing Face", keywords: "grimace awkward nervous" },
+  { char: "🤥", name: "Lying Face", keywords: "pinocchio lie liar" },
+  { char: "😌", name: "Relieved Face", keywords: "relieved phew calm" },
+  { char: "😔", name: "Pensive Face", keywords: "sad thoughtful" },
+  { char: "😪", name: "Sleepy Face", keywords: "sleep tired" },
+  { char: "🤤", name: "Drooling Face", keywords: "drool delicious" },
+  { char: "😴", name: "Sleeping Face", keywords: "zzz sleep tired" },
+  { char: "😷", name: "Face with Medical Mask", keywords: "sick mask doctor" },
+  { char: "🤒", name: "Face with Thermometer", keywords: "sick fever ill" },
+  { char: "🤕", name: "Face with Head-Bandage", keywords: "hurt injured bandage" },
+  { char: "🤢", name: "Nauseated Face", keywords: "gross sick vomit" },
+  { char: "🤮", name: "Face Vomiting", keywords: "sick puke vomit" },
+  { char: "🤧", name: "Sneezing Face", keywords: "sneeze sick tissue" },
+  { char: "🥵", name: "Hot Face", keywords: "hot sweat heat" },
+  { char: "🥶", name: "Cold Face", keywords: "freezing cold ice" },
+  { char: "🥴", name: "Woozy Face", keywords: "dizzy drunk woozy" },
+  { char: "😵", name: "Dizzy Face", keywords: "dizzy knocked out" },
+  { char: "🤯", name: "Exploding Head", keywords: "mind blown shocked" },
+  { char: "🤠", name: "Cowboy Hat Face", keywords: "cowboy hat" },
+  { char: "🥳", name: "Partying Face", keywords: "party celebrate hat" },
+  { char: "😎", name: "Smiling Face with Sunglasses", keywords: "cool sunglasses rad" },
+  { char: "🤓", name: "Nerd Face", keywords: "nerd glasses geek" },
+  { char: "🧐", name: "Face with Monocle", keywords: "monocle curious inspect" },
+
+  // Gestures & People
+  { char: "👍", name: "Thumbs Up", keywords: "yes approve like good" },
+  { char: "👎", name: "Thumbs Down", keywords: "no dislike bad" },
+  { char: "👏", name: "Clapping Hands", keywords: "applause clap bravo" },
+  { char: "🙌", name: "Raising Hands", keywords: "celebrate hooray praise" },
+  { char: "👐", name: "Open Hands", keywords: "open hug" },
+  { char: "🤲", name: "Palms Up Together", keywords: "pray open" },
+  { char: "🤝", name: "Handshake", keywords: "agree deal friendship" },
+  { char: "🙏", name: "Folded Hands", keywords: "pray please thank you" },
+  { char: "✌️", name: "Victory Hand", keywords: "peace victory v" },
+  { char: "🤟", name: "Love-You Gesture", keywords: "love rock" },
+  { char: "🤘", name: "Sign of the Horns", keywords: "rock metal" },
+  { char: "👊", name: "Oncoming Fist", keywords: "fist bump punch" },
+  { char: "✊", name: "Raised Fist", keywords: "power fist" },
+  { char: "🤛", name: "Left-Facing Fist", keywords: "fist bump" },
+  { char: "🤜", name: "Right-Facing Fist", keywords: "fist bump" },
+  { char: "🖐️", name: "Hand with Fingers Splayed", keywords: "hand five stop" },
+  { char: "✋", name: "Raised Hand", keywords: "stop high five" },
+  { char: "👋", name: "Waving Hand", keywords: "wave hello goodbye" },
+  { char: "💪", name: "Flexed Biceps", keywords: "strong muscle power" },
+  { char: "💅", name: "Nail Polish", keywords: "beauty sassy" },
+  { char: "✍️", name: "Writing Hand", keywords: "write sign pen" },
+
+  // Hearts & Symbols
+  { char: "❤️", name: "Red Heart", keywords: "love heart red" },
+  { char: "🧡", name: "Orange Heart", keywords: "love heart orange" },
+  { char: "💛", name: "Yellow Heart", keywords: "love heart yellow" },
+  { char: "💚", name: "Green Heart", keywords: "love heart green" },
+  { char: "💙", name: "Blue Heart", keywords: "love heart blue" },
+  { char: "💜", name: "Purple Heart", keywords: "love heart purple" },
+  { char: "🖤", name: "Black Heart", keywords: "love heart black" },
+  { char: "🤍", name: "White Heart", keywords: "love heart white" },
+  { char: "🤎", name: "Brown Heart", keywords: "love heart brown" },
+  { char: "💔", name: "Broken Heart", keywords: "sad heartbreak" },
+  { char: "❣️", name: "Heart Exclamation", keywords: "love heart heavy" },
+  { char: "💕", name: "Two Hearts", keywords: "love hearts" },
+  { char: "💞", name: "Revolving Hearts", keywords: "love hearts" },
+  { char: "💓", name: "Beating Heart", keywords: "love heart pulse" },
+  { char: "💗", name: "Growing Heart", keywords: "love heart" },
+  { char: "💖", name: "Sparkling Heart", keywords: "love heart sparkle" },
+  { char: "💘", name: "Heart with Arrow", keywords: "cupid love heart" },
+  { char: "💝", name: "Heart with Ribbon", keywords: "gift love heart" },
+  { char: "✨", name: "Sparkles", keywords: "clean shiny magic" },
+  { char: "🌟", name: "Glowing Star", keywords: "star shiny yellow" },
+  { char: "💫", name: "Dizzy Symbol", keywords: "star shooting" },
+  { char: "⚡", name: "High Voltage", keywords: "lightning bolt power" },
+  { char: "💥", name: "Collision", keywords: "boom explosion bang" },
+  { char: "🔥", name: "Fire", keywords: "hot flame lit fire" },
+  { char: "🎉", name: "Party Popper", keywords: "celebrate party tada" },
+  { char: "🎊", name: "Confetti Ball", keywords: "party celebrate" },
+  { char: "🎈", name: "Balloon", keywords: "party birthday" },
+  { char: "🏆", name: "Trophy", keywords: "winner gold cup" },
+  { char: "🥇", name: "1st Place Medal", keywords: "first gold medal winner" },
+
+  // Nature, Objects & Food
+  { char: "🐱", name: "Cat Face", keywords: "cat pet kitten" },
+  { char: "🐶", name: "Dog Face", keywords: "dog pet puppy" },
+  { char: "🦊", name: "Fox", keywords: "fox animal" },
+  { char: "🦁", name: "Lion", keywords: "lion king animal" },
+  { char: "🐯", name: "Tiger Face", keywords: "tiger animal" },
+  { char: "🐻", name: "Bear", keywords: "bear animal" },
+  { char: "🐼", name: "Panda", keywords: "panda bear animal" },
+  { char: "🦄", name: "Unicorn", keywords: "unicorn magic" },
+  { char: "🚀", name: "Rocket", keywords: "space launch rocket" },
+  { char: "🌈", name: "Rainbow", keywords: "rainbow color sky" },
+  { char: "☀️", name: "Sun", keywords: "sun sunny weather" },
+  { char: "🌙", name: "Crescent Moon", keywords: "moon night" },
+  { char: "🍕", name: "Pizza", keywords: "pizza food slice" },
+  { char: "🍔", name: "Hamburger", keywords: "burger food fast food" },
+  { char: "🍟", name: "French Fries", keywords: "fries food fast food" },
+  { char: "🌮", name: "Taco", keywords: "taco food mexican" },
+  { char: "☕", name: "Hot Beverage", keywords: "coffee tea hot" },
+  { char: "🍺", name: "Beer Mug", keywords: "beer drink alcohol" },
+  { char: "🥂", name: "Clinking Glasses", keywords: "cheers drink toast" },
+  { char: "⚽", name: "Soccer Ball", keywords: "soccer football sports" },
+  { char: "🎮", name: "Video Game Controller", keywords: "gaming game play" },
+  { char: "🎲", name: "Game Die", keywords: "dice game luck" },
+  { char: "🎸", name: "Guitar", keywords: "music rock guitar" },
+  { char: "🎧", name: "Headphones", keywords: "music listen audio" }
+];
+
 function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?") {
   const wrapper = document.getElementById(wrapperId);
   if (!wrapper) return null;
@@ -893,6 +1031,16 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
         <button type="button" class="wysiwyg-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
         <span class="wysiwyg-divider"></span>
         <button type="button" class="wysiwyg-btn wysiwyg-link-btn" title="Insert Link (Ctrl+K)">🔗 Link</button>
+        <div class="wysiwyg-emoji-menu-wrapper">
+          <button type="button" class="wysiwyg-btn wysiwyg-emoji-btn" title="Insert Emoji">😀</button>
+          <div class="wysiwyg-emoji-menu">
+            <div class="emoji-menu-header">
+              <input type="text" class="emoji-search-input" placeholder="🔍 Search emojis...">
+            </div>
+            <div class="emoji-menu-grid"></div>
+            <div class="emoji-hover-footer">Hover over an emoji</div>
+          </div>
+        </div>
       </div>
       <div class="wysiwyg-editor" contenteditable="true" data-placeholder="${escapeHtmlAttr(placeholderText)}"></div>
       <input type="hidden" class="wysiwyg-hidden-input" name="content">
@@ -932,6 +1080,89 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
       openWysiwygLinkModal(editor, syncContent);
     });
   }
+
+  // Emoji Menu Handler
+  const emojiBtn = toolbar.querySelector('.wysiwyg-emoji-btn');
+  const emojiMenu = toolbar.querySelector('.wysiwyg-emoji-menu');
+  const emojiGrid = toolbar.querySelector('.emoji-menu-grid');
+  const emojiSearch = toolbar.querySelector('.emoji-search-input');
+  const emojiFooter = toolbar.querySelector('.emoji-hover-footer');
+  let savedEmojiRange = null;
+
+  function renderEmojiGrid(filterText = '') {
+    const query = filterText.trim().toLowerCase();
+    const filtered = WYSIWYG_EMOJIS.filter(e => {
+      if (!query) return true;
+      return e.name.toLowerCase().includes(query) ||
+             e.keywords.toLowerCase().includes(query) ||
+             e.char.includes(query);
+    });
+
+    if (filtered.length === 0) {
+      emojiGrid.innerHTML = `<div style="grid-column: span 8; color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 0.75rem 0;">No matching emojis</div>`;
+      return;
+    }
+
+    emojiGrid.innerHTML = filtered.map(e => `
+      <button type="button" class="emoji-item-btn" title="${escapeHtmlAttr(e.name)}" data-emoji="${e.char}" data-name="${escapeHtmlAttr(e.name)}">${e.char}</button>
+    `).join('');
+
+    emojiGrid.querySelectorAll('.emoji-item-btn').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        if (emojiFooter) {
+          const name = btn.getAttribute('data-name');
+          const char = btn.getAttribute('data-emoji');
+          emojiFooter.innerText = `${char} ${name}`;
+        }
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        if (emojiFooter) {
+          emojiFooter.innerText = 'Hover over an emoji';
+        }
+      });
+
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const emoji = btn.getAttribute('data-emoji');
+        insertEmojiIntoEditor(editor, emoji, savedEmojiRange, syncContent);
+        emojiMenu.style.display = 'none';
+      });
+    });
+  }
+
+  if (emojiBtn && emojiMenu) {
+    renderEmojiGrid();
+
+    emojiBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        savedEmojiRange = sel.getRangeAt(0).cloneRange();
+      }
+
+      const isVisible = emojiMenu.style.display === 'block';
+      emojiMenu.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible && emojiSearch) {
+        emojiSearch.value = '';
+        renderEmojiGrid();
+        setTimeout(() => emojiSearch.focus(), 50);
+      }
+    });
+
+    if (emojiSearch) {
+      emojiSearch.addEventListener('input', (e) => {
+        renderEmojiGrid(e.target.value);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!wrapper.contains(e.target)) {
+        emojiMenu.style.display = 'none';
+      }
+    });
+  }
+
 
   editor.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -973,6 +1204,18 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
     }
   };
 }
+
+function insertEmojiIntoEditor(editor, emoji, savedRange, syncCallback) {
+  editor.focus();
+  const sel = window.getSelection();
+  if (savedRange) {
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+  document.execCommand('insertText', false, emoji);
+  if (syncCallback) syncCallback();
+}
+
 
 function openWysiwygLinkModal(editor, syncCallback) {
   let modal = document.getElementById('wysiwyg-link-modal');
