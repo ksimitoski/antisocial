@@ -1,0 +1,697 @@
+{% extends "base.html" %}
+
+{% block title %}Feed - Antisocial{% endblock %}
+
+{% block content %}
+<div class="feed-grid">
+  <!-- Left Sidebar Navigation / Quick Stats -->
+  <aside>
+    <div class="card" style="position: sticky; top: 80px;">
+      <h3 style="margin-bottom: 0.75rem;">Welcome, <span style="color: var(--primary-red);">{{ current_user.username }}</span>!</h3>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+        Your privacy settings are active. Only audiences you explicitly permit can see your content.
+      </p>
+
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem;">
+        <li><a href="{{ url_for('profile', username=current_user.username) }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👤 My Profile</a></li>
+        <li><a href="{{ url_for('friends') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👥 Friends</a></li>
+        <li><a href="{{ url_for('groups') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👪 Groups</a></li>
+        <li><a href="{{ url_for('settings') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">⚙️ Privacy Settings</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Main Feed Area -->
+  <section>
+    {% if site_settings and site_settings.page_text %}
+      <div id="main-feed-notice" class="card dismissable-notice" style="background: rgba(220, 38, 38, 0.05); border-left: 4px solid var(--primary-red); margin-bottom: 1.5rem; position: relative; padding-right: 3rem;">
+        <button type="button" onclick="dismissNotice('main-feed-notice')" class="banner-close-btn" aria-label="Dismiss notice">&times;</button>
+        <p style="font-size: 1rem; margin: 0; color: var(--text-main);">ℹ️ {{ site_settings.page_text }}</p>
+      </div>
+    {% endif %}
+
+
+
+    <!-- Create Post Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <h3 style="margin-bottom: 1rem; color: var(--primary-red);">Share Something</h3>
+
+
+      <form id="create-post-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <textarea id="post-content" name="content" class="form-control" placeholder="What's on your mind?" autocapitalize="sentences"></textarea>
+        </div>
+
+        <!-- Drag & Drop Media Attachment Dropzone -->
+        <div id="feed-media-dropzone" class="media-dropzone">
+          <div class="dropzone-prompt" style="color: var(--text-muted); font-size: 0.88rem;">
+            📁 <strong>Drag & Drop Image Here</strong> or <span style="color: var(--primary-red); text-decoration: underline;">browse files</span>
+          </div>
+          <input type="file" id="file-input" name="file" accept="image/*" style="display: none;">
+          <div id="dropzone-preview-container"></div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <select id="post-visibility" name="visibility" class="form-control" style="width: auto; padding: 0.4rem 0.65rem; font-size: 0.85rem;">
+              <option value="public">🌐 Public</option>
+              <option value="internal-only">🔐 Internal Only</option>
+              <option value="friends">👥 Friends Only</option>
+              <option value="private">🔒 Private (Only Me)</option>
+            </select>
+
+            <select id="post-expires-in" name="expires_in" class="form-control" style="width: auto; padding: 0.4rem 0.65rem; font-size: 0.85rem;" title="Self-Destruct Timer">
+              <option value="">⏳ Keep Permanently</option>
+              <option value="1h">⏳ Expire in 1 Hour</option>
+              <option value="24h">⏳ Expire in 24 Hours</option>
+              <option value="7d">⏳ Expire in 7 Days</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Publish Post</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Search Posts Card -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <h3 style="margin-bottom: 0.75rem; color: var(--primary-red); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+        🔍 Search Feed
+      </h3>
+      <form id="search-posts-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <div style="flex: 2; min-width: 180px;">
+            <input type="text" id="search-text-input" class="form-control" placeholder="Search post text..." />
+          </div>
+          <div style="flex: 1; min-width: 140px;">
+            <input type="text" id="search-user-input" class="form-control" placeholder="Filter by username..." />
+          </div>
+          <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Search</button>
+          <button type="button" id="clear-search-btn" class="btn btn-secondary" onclick="clearSearch()" style="white-space: nowrap; display: none;">Clear</button>
+        </div>
+      </form>
+      <div id="search-status-bar" style="display: none; margin-top: 0.75rem; font-size: 0.88rem; color: var(--primary-red); font-weight: 500;"></div>
+    </div>
+
+    <!-- Feed Posts Container -->
+    <div id="feed-container">
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        Loading social feed...
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const currentUsername = "{{ current_user.username }}";
+const currentUserId = parseInt("{{ current_user.id }}");
+const isModeratorOrAdmin = {{ 'true' if (current_user and current_user.is_moderator) else 'false' }};
+
+let currentSkip = 0;
+const LIMIT = 10;
+let isLoading = false;
+let hasMore = true;
+
+let searchQuery = '';
+let searchUser = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupSearch();
+  resetAndLoadFeed();
+
+  const postContentInput = document.getElementById('post-content');
+  if (postContentInput) {
+    postContentInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const postForm = document.getElementById('create-post-form');
+        if (postForm) {
+          if (typeof postForm.requestSubmit === 'function') {
+            postForm.requestSubmit();
+          } else {
+            postForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }
+      }
+    });
+  }
+
+  const postForm = document.getElementById('create-post-form');
+  postForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const postContentInput = document.getElementById('post-content');
+    const contentVal = postContentInput ? postContentInput.value : '';
+
+    const formData = new FormData(postForm);
+    formData.set('content', contentVal);
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (res.ok) {
+        postForm.reset();
+        clearMediaAttachment();
+        resetAndLoadFeed();
+      } else {
+        const err = await res.json();
+        let errMsg = "Failed to create post";
+        if (typeof err.detail === 'string') {
+          errMsg = err.detail;
+        } else if (Array.isArray(err.detail) && err.detail.length > 0) {
+          errMsg = err.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+        }
+        showCustomAlert(errMsg, "Publish Error");
+      }
+    } catch (err) {
+      showCustomAlert("Network error publishing post: " + err.message, "Network Error");
+    }
+  });
+
+  window.addEventListener('scroll', handleScroll);
+  setupMediaDropzone('feed-media-dropzone', 'file-input', 'dropzone-preview-container');
+});
+
+function setupSearch() {
+  const searchForm = document.getElementById('search-posts-form');
+  if (searchForm) {
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      searchQuery = document.getElementById('search-text-input').value.trim();
+      searchUser = document.getElementById('search-user-input').value.trim();
+      updateSearchStatus();
+      resetAndLoadFeed();
+    });
+  }
+}
+
+function clearSearch() {
+  document.getElementById('search-text-input').value = '';
+  document.getElementById('search-user-input').value = '';
+  searchQuery = '';
+  searchUser = '';
+  updateSearchStatus();
+  resetAndLoadFeed();
+}
+
+function updateSearchStatus() {
+  const statusBar = document.getElementById('search-status-bar');
+  const clearBtn = document.getElementById('clear-search-btn');
+  if (!statusBar || !clearBtn) return;
+
+  const parts = [];
+  if (searchQuery) parts.push(`matching text "${searchQuery}"`);
+  if (searchUser) parts.push(`by user "@${searchUser.replace(/^@/, '')}"`);
+
+  if (parts.length > 0) {
+    statusBar.style.display = 'block';
+    statusBar.innerHTML = `Showing results for posts ${parts.join(' and ')}`;
+    clearBtn.style.display = 'inline-block';
+  } else {
+    statusBar.style.display = 'none';
+    statusBar.innerHTML = '';
+    clearBtn.style.display = 'none';
+  }
+}
+
+function handleScroll() {
+  if (isLoading || !hasMore) return;
+  const scrollPosition = window.innerHeight + window.scrollY;
+  const threshold = document.documentElement.scrollHeight - 300;
+  if (scrollPosition >= threshold) {
+    loadMorePosts();
+  }
+}
+
+function resetAndLoadFeed() {
+  currentSkip = 0;
+  hasMore = true;
+  isLoading = false;
+  const container = document.getElementById('feed-container');
+  container.innerHTML = '';
+  loadMorePosts();
+}
+
+async function loadMorePosts() {
+  if (isLoading || !hasMore) return;
+  isLoading = true;
+
+  const container = document.getElementById('feed-container');
+  
+  let spinner = document.getElementById('feed-spinner');
+  if (!spinner) {
+    spinner = document.createElement('div');
+    spinner.id = 'feed-spinner';
+    spinner.style.textAlign = 'center';
+    spinner.style.padding = '1.5rem';
+    spinner.style.color = 'var(--text-muted)';
+    spinner.innerHTML = 'Loading posts...';
+    container.appendChild(spinner);
+  }
+
+  try {
+    let url = `/api/posts?skip=${currentSkip}&limit=${LIMIT}`;
+    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+    if (searchUser) url += `&username=${encodeURIComponent(searchUser)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+
+    if (!res.ok) {
+      if (currentSkip === 0) {
+        container.innerHTML = `<div class="alert alert-danger">Error loading feed.</div>`;
+      }
+      isLoading = false;
+      return;
+    }
+
+    const posts = await res.json();
+
+    if (posts.length === 0) {
+      hasMore = false;
+      if (currentSkip === 0) {
+        container.innerHTML = `<div class="card" style="text-align:center; color: var(--text-muted);">No posts available in your feed yet. Create one above!</div>`;
+      } else {
+        const endNotice = document.createElement('div');
+        endNotice.style.textAlign = 'center';
+        endNotice.style.padding = '1rem';
+        endNotice.style.color = 'var(--text-muted)';
+        endNotice.style.fontSize = '0.9rem';
+        endNotice.innerText = "You've reached the end of the feed.";
+        container.appendChild(endNotice);
+      }
+      isLoading = false;
+      return;
+    }
+
+    const html = posts.map(post => renderPostCard(post)).join('');
+    container.insertAdjacentHTML('beforeend', html);
+    currentSkip += posts.length;
+
+    if (posts.length < LIMIT) {
+      hasMore = false;
+    }
+
+    // If viewport is larger than page content, load more automatically until filled
+    if (hasMore && document.documentElement.scrollHeight <= window.innerHeight + 100) {
+      isLoading = false;
+      loadMorePosts();
+      return;
+    }
+  } catch (err) {
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+    if (currentSkip === 0) {
+      container.innerHTML = `<div class="alert alert-danger">Error connecting to server.</div>`;
+    }
+  } finally {
+    isLoading = false;
+  }
+}
+
+function formatVisibilityBadge(post) {
+  if (post.group_name || post.group_id) {
+    return '<span class="badge-visibility"><span class="badge-icon">🔒</span><span class="badge-text"> Group Only</span></span>';
+  }
+  const vis = (post.visibility || '').toLowerCase();
+  if (vis === 'internal-only' || vis === 'internal') {
+    return '<span class="badge-visibility" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);"><span class="badge-icon">🔐</span><span class="badge-text"> Internal Only</span></span>';
+  }
+  if (vis === 'friends') {
+    return '<span class="badge-visibility" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);"><span class="badge-icon">👥</span><span class="badge-text"> Friends Only</span></span>';
+  }
+  if (vis === 'private') {
+    return '<span class="badge-visibility" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><span class="badge-icon">🔒</span><span class="badge-text"> Private</span></span>';
+  }
+  return '<span class="badge-visibility"><span class="badge-icon">🌐</span><span class="badge-text"> Public</span></span>';
+}
+
+function renderPostCard(post) {
+  const initial = post.author_username ? post.author_username.charAt(0).toUpperCase() : 'U';
+  const rawAvatar = post.author_avatar 
+    ? `<img src="${post.author_avatar}" class="user-avatar" style="object-fit: cover;" />`
+    : `<div class="user-avatar">${initial}</div>`;
+  
+  const statusVal = (post.author_online_status || post.online_status || 'unknown').toLowerCase();
+  let statusDotClass = 'unknown';
+  if (statusVal === 'online') statusDotClass = 'online';
+  else if (statusVal === 'offline') statusDotClass = 'offline';
+
+  const avatarHtml = `
+    <div class="avatar-container">
+      ${rawAvatar}
+      <span class="status-indicator ${statusDotClass}" data-username="${post.author_username}" title="Status: ${statusVal}"></span>
+    </div>`;
+  
+  const displayName = post.author_display_name || post.author_username;
+
+  let mediaHtml = '';
+  if (post.media_type === 'image' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <img src="${post.media_url}" alt="Post image attachment" loading="lazy" />
+      </div>`;
+  } else if (post.media_type === 'video' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <video controls preload="metadata">
+          <source src="${post.media_url}">
+          Your browser does not support HTML5 video player.
+        </video>
+      </div>`;
+  }
+
+  const isAuthor = post.author_id === currentUserId;
+  const canDelete = isAuthor || isModeratorOrAdmin;
+  const editBtn = isAuthor ? `
+    <button onclick="enablePostEdit(${post.id})" class="action-btn edit-action-btn" style="margin-left: auto;">
+      <span class="edit-icon">✏️</span> Edit
+    </button>` : '';
+  const deleteBtn = canDelete ? `
+    <button onclick="deletePost(${post.id})" class="action-btn delete-action-btn" style="${!isAuthor ? 'margin-left: auto;' : ''}">
+      <span class="delete-icon">🗑️</span> Delete ${!isAuthor ? '(Mod)' : ''}
+    </button>` : '';
+
+  let privacyBadgeHtml = formatVisibilityBadge(post);
+  if (isAuthor && !post.group_id) {
+    const currentVis = (post.visibility || 'public').toLowerCase();
+    privacyBadgeHtml = `
+      <select onfocus="this.setAttribute('data-prev', this.value)" onchange="updatePostPrivacy(${post.id}, this.value, this)" class="form-control" title="Change Post Privacy" style="width: auto; padding: 0.15rem 0.5rem; font-size: 0.78rem; border-radius: var(--radius-full); cursor: pointer; background: var(--input-bg); color: var(--text-main); font-weight: 500; border: 1px solid var(--primary-red);">
+        <option value="public" ${currentVis === 'public' ? 'selected' : ''}>🌐 Public</option>
+        <option value="friends" ${currentVis === 'friends' ? 'selected' : ''}>👥 Friends Only</option>
+        <option value="internal" ${currentVis === 'internal' || currentVis === 'internal-only' ? 'selected' : ''}>🔐 Internal Only</option>
+        <option value="private" ${currentVis === 'private' ? 'selected' : ''}>🔒 Private</option>
+      </select>
+    `;
+  }
+
+  const commentsHtml = post.comments.map(c => {
+    const cName = c.author_display_name || c.author_username;
+    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+    const cAvatarHtml = c.author_avatar 
+      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+    const canDeleteComment = c.author_id === currentUserId || post.author_id === currentUserId || isModeratorOrAdmin;
+    const commentDeleteBtn = canDeleteComment ? `
+      <button onclick="deleteComment(${post.id}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+        <span class="delete-icon">🗑️</span> ${! (c.author_id === currentUserId || post.author_id === currentUserId) ? '(Mod)' : ''}
+      </button>
+    ` : '';
+
+    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+
+    return `
+      <div class="comment-item" id="comment-${c.id}">
+        <a href="/profile/${c.author_username}" class="comment-avatar-link">
+          ${cAvatarHtml}
+        </a>
+        <div class="comment-body">
+          <div class="comment-text-content">
+            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+            <span class="comment-text">${escapeHtml(c.content)}</span>
+          </div>
+          <div class="comment-actions-meta">
+            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
+            ${commentDeleteBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="post-card" id="post-${post.id}">
+      <div class="post-header">
+        <div class="post-author-info">
+          ${avatarHtml}
+          <div>
+            <a href="/profile/${post.author_username}" class="author-name">${escapeHtml(displayName)}</a>
+            <div class="post-meta">
+              @${escapeHtml(post.author_username)} &bull; ${formatDateTime(post.created_at)}
+              ${post.group_name ? ` in <strong style="color:var(--primary-red);">${escapeHtml(post.group_name)}</strong>` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          ${renderEphemeralBadge(post.expires_at)}
+          ${privacyBadgeHtml}
+        </div>
+      </div>
+
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      ${mediaHtml}
+
+      <div class="post-actions">
+        <button onclick="toggleLike(${post.id})" class="action-btn like-action-btn ${post.user_has_liked ? 'active' : ''}">
+          ${post.user_has_liked ? '❤️' : '🤍'} <span id="likes-count-${post.id}">${post.likes_count}</span> Likes
+        </button>
+        <button onclick="sharePost(${post.id}, \`${escapeHtml(post.content || '').replace(/`/g, '\\`')}\`)" class="action-btn share-action-btn">
+          🔗 Share
+        </button>
+        ${editBtn}
+        ${deleteBtn}
+      </div>
+
+      <div class="comments-section">
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+          <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+          <button onclick="submitComment(${post.id})" class="btn btn-secondary btn-sm">Comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleLike(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const postCard = document.getElementById(`post-${postId}`);
+      if (postCard) {
+        const likeBtn = postCard.querySelector('.like-action-btn');
+        if (likeBtn) {
+          likeBtn.className = `action-btn like-action-btn ${data.liked ? 'active' : ''}`;
+          likeBtn.innerHTML = `${data.liked ? '❤️' : '🤍'} <span id="likes-count-${postId}">${data.likes_count}</span> Likes`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Like toggle failed", err);
+  }
+}
+
+async function submitComment(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  const content = input.value.trim();
+  if (!content) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content })
+    });
+
+    if (res.ok) {
+      const c = await res.json();
+      input.value = '';
+      const commentsList = document.getElementById(`comments-list-${postId}`);
+      if (commentsList) {
+        const cName = c.author_display_name || c.author_username;
+        const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+        const cAvatarHtml = c.author_avatar 
+          ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+          : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+
+        const dateStr = c.created_at ? formatDateTime(c.created_at) : formatDateTime(new Date().toISOString());
+
+        const commentEl = document.createElement('div');
+        commentEl.className = 'comment-item';
+        commentEl.id = `comment-${c.id}`;
+        commentEl.innerHTML = `
+          <a href="/profile/${c.author_username}" class="comment-avatar-link">
+            ${cAvatarHtml}
+          </a>
+          <div class="comment-body">
+            <div class="comment-text-content">
+              <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+              <span class="comment-text">${escapeHtml(c.content)}</span>
+            </div>
+            <div class="comment-actions-meta">
+              <span class="comment-date">${escapeHtml(dateStr)}</span>
+              <button onclick="deleteComment(${postId}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+                <span class="delete-icon">🗑️</span>
+              </button>
+            </div>
+          </div>
+        `;
+        commentsList.prepend(commentEl);
+        commentsList.scrollTop = 0;
+      }
+    }
+  } catch (err) {
+    console.error("Comment failed", err);
+  }
+}
+
+async function deletePost(postId) {
+  showCustomConfirm("Are you sure you want to delete this post?", "Delete Post", async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const postCard = document.getElementById(`post-${postId}`);
+        if (postCard) {
+          postCard.remove();
+          if (currentSkip > 0) currentSkip--;
+        }
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to delete post.");
+      }
+    } catch (err) {
+      showCustomAlert("Delete failed: " + err.message);
+    }
+  });
+}
+
+function enablePostEdit(postId) {
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (!contentEl) return;
+  const rawText = contentEl.getAttribute('data-raw-content') || contentEl.innerText;
+
+  contentEl.innerHTML = `<div id="post-edit-box-${postId}" style="margin: 0.2rem 0;"><textarea id="post-edit-input-${postId}" class="form-control" rows="3" style="width: 100%; margin-top: 0.2rem; margin-bottom: 0.35rem;">${escapeHtml(rawText)}</textarea><div style="display: flex; gap: 0.5rem; justify-content: flex-end;"><button type="button" onclick="cancelPostEdit(${postId})" class="btn btn-secondary btn-sm">Cancel</button><button type="button" onclick="submitPostEdit(${postId})" class="btn btn-primary btn-sm">Save Edit</button></div></div>`;
+}
+
+async function submitPostEdit(postId) {
+  const input = document.getElementById(`post-edit-input-${postId}`);
+  if (!input) return;
+  const newContent = input.value.trim();
+
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content: newContent })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const contentEl = document.getElementById(`post-content-text-${postId}`);
+      if (contentEl) {
+        contentEl.setAttribute('data-raw-content', data.content);
+        contentEl.innerText = data.content;
+      }
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to update post content", "Edit Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error updating post: " + err.message, "Network Error");
+  }
+}
+
+function cancelPostEdit(postId) {
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (contentEl) {
+    const rawText = contentEl.getAttribute('data-raw-content') || '';
+    contentEl.innerText = rawText;
+  }
+}
+
+async function deleteComment(postId, commentId) {
+  showCustomConfirm("Are you sure you want to delete this comment?", "Delete Comment", async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const commentEl = document.getElementById(`comment-${commentId}`);
+        if (commentEl) {
+          commentEl.remove();
+        }
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to delete comment.");
+      }
+    } catch (err) {
+      showCustomAlert("Delete comment failed: " + err.message);
+    }
+  });
+}
+
+async function updatePostPrivacy(postId, newVisibility, selectEl) {
+  const previousValue = selectEl ? selectEl.getAttribute('data-prev') || newVisibility : newVisibility;
+  try {
+    const res = await fetch(`/api/posts/${postId}/privacy`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ visibility: newVisibility })
+    });
+
+    if (res.ok) {
+      if (selectEl) {
+        selectEl.setAttribute('data-prev', newVisibility);
+      }
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed updating privacy setting.", "Error");
+      if (selectEl) {
+        selectEl.value = previousValue;
+      }
+    }
+  } catch (err) {
+    showCustomAlert("Error updating privacy: " + err.message, "Network Error");
+    if (selectEl) {
+      selectEl.value = previousValue;
+    }
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>
+{% endblock %}

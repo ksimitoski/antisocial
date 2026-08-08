@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+
+{% block title %}{{ username }}'s Profile - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  <div class="card" id="profile-card">
+    <div style="text-align: center; padding: 1rem 0;">
+      <div class="avatar-container" style="margin: 0 auto 1rem auto;">
+        <div id="profile-avatar" class="user-avatar" style="width: 84px; height: 84px; font-size: 2.2rem; overflow: hidden;">
+          {{ username[0]|upper }}
+        </div>
+        <span id="profile-status-dot" class="status-indicator unknown" data-username="{{ username }}" style="width: 18px; height: 18px; border-width: 3px;"></span>
+      </div>
+
+      <h2 style="color: var(--primary-red); margin-bottom: 0.2rem;" id="profile-display-name">{{ username }}</h2>
+      <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;" id="profile-handle">@{{ username }}</div>
+      <div id="profile-status-badge" style="margin-bottom: 0.75rem;"></div>
+      <div id="friendship-action-container" style="margin-top: 0.5rem;"></div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+    <h3 style="margin-bottom: 1rem;">Profile Information</h3>
+
+    <div id="profile-details-grid" style="display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">First Name</span>
+        <strong id="val-first-name">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Last Name</span>
+        <strong id="val-last-name">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Bio</span>
+        <strong id="val-bio">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Location</span>
+        <strong id="val-location">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Birthdate</span>
+        <strong id="val-birthdate">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Phone</span>
+        <strong id="val-phone">Loading...</strong>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Email</span>
+        <strong id="val-email">Loading...</strong>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin: 2rem 0 1rem 0; color: var(--text-main);">Posts by {{ username }}</h3>
+  <div id="user-posts-container">
+    <div style="text-align:center; color: var(--text-muted);">Loading user posts...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const profileUsername = "{{ username }}";
+const currentUsername = "{{ current_user.username }}";
+const currentUserId = parseInt("{{ current_user.id if current_user else 0 }}");
+const isModeratorOrAdmin = {{ 'true' if (current_user and current_user.is_moderator) else 'false' }};
+
+let userPostsSkip = 0;
+const USER_POSTS_LIMIT = 10;
+let isUserPostsLoading = false;
+let hasMoreUserPosts = true;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadProfile();
+  loadUserPosts();
+  window.addEventListener('scroll', handleProfileScroll);
+});
+
+function handleProfileScroll() {
+  if (isUserPostsLoading || !hasMoreUserPosts) return;
+  const scrollPosition = window.innerHeight + window.scrollY;
+  const threshold = document.documentElement.scrollHeight - 350;
+  if (scrollPosition >= threshold) {
+    loadUserPosts();
+  }
+}
+
+async function loadUserPosts(reset = false) {
+  if (reset) {
+    userPostsSkip = 0;
+    hasMoreUserPosts = true;
+  }
+  if (isUserPostsLoading || !hasMoreUserPosts) return;
+  isUserPostsLoading = true;
+
+  const container = document.getElementById('user-posts-container');
+  if (!container) return;
+
+  let spinner = document.getElementById('user-posts-spinner');
+  if (!spinner) {
+    spinner = document.createElement('div');
+    spinner.id = 'user-posts-spinner';
+    spinner.style.textAlign = 'center';
+    spinner.style.padding = '1.5rem';
+    spinner.style.color = 'var(--text-muted)';
+    spinner.innerHTML = 'Loading user posts...';
+    container.appendChild(spinner);
+  }
+
+  try {
+    const res = await fetch(`/api/posts?username=${profileUsername}&skip=${userPostsSkip}&limit=${USER_POSTS_LIMIT}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+
+    if (!res.ok) {
+      if (userPostsSkip === 0) {
+        container.innerHTML = `<div class="alert alert-danger">Could not load posts.</div>`;
+      }
+      isUserPostsLoading = false;
+      return;
+    }
+
+    const posts = await res.json();
+
+    if (userPostsSkip === 0 && posts.length === 0) {
+      container.innerHTML = `<div class="card" style="text-align:center; color: var(--text-muted);">No visible posts from this user.</div>`;
+      hasMoreUserPosts = false;
+      isUserPostsLoading = false;
+      return;
+    }
+
+    if (posts.length < USER_POSTS_LIMIT) {
+      hasMoreUserPosts = false;
+    }
+
+    const postsHtml = posts.map(post => renderProfilePostCard(post)).join('');
+    
+    if (userPostsSkip === 0) {
+      container.innerHTML = postsHtml;
+    } else {
+      container.insertAdjacentHTML('beforeend', postsHtml);
+    }
+
+    userPostsSkip += posts.length;
+
+    // Auto load next batch if viewport isn't filled yet
+    if (hasMoreUserPosts && document.documentElement.scrollHeight <= window.innerHeight + 100) {
+      setTimeout(() => loadUserPosts(), 200);
+    }
+  } catch (err) {
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+    if (userPostsSkip === 0) {
+      container.innerHTML = `<div class="alert alert-danger">Error loading posts.</div>`;
+    }
+  } finally {
+    isUserPostsLoading = false;
+  }
+}
+
+async function loadProfile() {
+  try {
+    const res = await fetch(`/api/users/profile/${profileUsername}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      document.getElementById('profile-card').innerHTML = `<div class="alert alert-danger">User profile not found or restricted.</div>`;
+      return;
+    }
+
+    const data = await res.json();
+    const p = data.profile;
+
+    if (p.avatar_url) {
+      document.getElementById('profile-avatar').innerHTML = `<img src="${p.avatar_url}" style="width:100%; height:100%; object-fit:cover;" />`;
+    }
+
+    document.getElementById('profile-display-name').innerText = p.display_name || data.username;
+    document.getElementById('profile-handle').innerText = `@${data.username}`;
+
+    const statusVal = (p.online_status || 'unknown').toLowerCase();
+    let statusBadgeHtml = '<span class="badge-visibility" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border-color: rgba(148, 163, 184, 0.3);">❓ Status Unknown</span>';
+    let statusDotClass = 'unknown';
+    if (statusVal === 'online') {
+      statusBadgeHtml = '<span class="badge-visibility" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);">🟢 Online</span>';
+      statusDotClass = 'online';
+    } else if (statusVal === 'offline') {
+      statusBadgeHtml = '<span class="badge-visibility" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border-color: rgba(148, 163, 184, 0.3);">⚪ Offline</span>';
+      statusDotClass = 'offline';
+    }
+    const statusContainer = document.getElementById('profile-status-badge');
+    if (statusContainer) statusContainer.innerHTML = statusBadgeHtml;
+    const statusDotEl = document.getElementById('profile-status-dot');
+    if (statusDotEl) statusDotEl.className = `status-indicator ${statusDotClass}`;
+
+    document.getElementById('val-first-name').innerText = p.first_name || '🔒 Hidden / Not provided';
+    document.getElementById('val-last-name').innerText = p.last_name || '🔒 Hidden / Not provided';
+    document.getElementById('val-bio').innerText = p.bio || '🔒 Hidden / Not provided';
+    document.getElementById('val-location').innerText = p.location || '🔒 Hidden / Not provided';
+    document.getElementById('val-birthdate').innerText = p.birthdate || '🔒 Hidden / Not provided';
+    document.getElementById('val-phone').innerText = p.phone || '🔒 Hidden / Not provided';
+    document.getElementById('val-email').innerText = p.email || '🔒 Hidden / Not provided';
+
+
+    const actionBox = document.getElementById('friendship-action-container');
+    if (currentUsername !== profileUsername) {
+      const messageBtnHtml = `<a href="/messages?username=${profileUsername}" class="btn btn-secondary btn-sm" style="text-decoration:none;">💬 Direct Message</a>`;
+      const fs = data.friendship_status;
+      if (!fs) {
+        actionBox.innerHTML = `<button onclick="sendFriendRequest()" class="btn btn-primary btn-sm">➕ Add Friend</button> ${messageBtnHtml}`;
+      } else if (fs.status === 'pending') {
+        if (fs.is_requester) {
+          actionBox.innerHTML = `<span class="badge-visibility">Friend Request Pending</span> ${messageBtnHtml}`;
+        } else {
+          actionBox.innerHTML = `
+            <button onclick="respondFriend(${fs.id}, 'accept')" class="btn btn-primary btn-sm">Accept Friend</button>
+            <button onclick="respondFriend(${fs.id}, 'decline')" class="btn btn-secondary btn-sm">Decline</button>
+            ${messageBtnHtml}
+          `;
+        }
+      } else if (fs.status === 'accepted') {
+        const isFollowing = data.is_following;
+        const followBtnHtml = isFollowing
+          ? `<button onclick="toggleFollow('${profileUsername}')" class="btn btn-secondary btn-sm" id="follow-btn">✓ Following</button>`
+          : `<button onclick="toggleFollow('${profileUsername}')" class="btn btn-primary btn-sm" id="follow-btn">🔔 Follow</button>`;
+        actionBox.innerHTML = `<span class="badge-visibility" style="background:#dcfce7; color:#15803d;">✓ Friends</span> ${followBtnHtml} ${messageBtnHtml}`;
+      }
+    }
+  } catch (err) {
+    console.error("Error loading profile", err);
+  }
+}
+
+async function toggleFollow(username) {
+  try {
+    const res = await fetch(`/api/users/${username}/follow`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadProfile();
+    } else {
+      const err = await res.json();
+      alert(err.detail || 'Could not update follow status');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function sendFriendRequest() {
+  try {
+    const res = await fetch(`/api/users/friends/request/${profileUsername}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadProfile();
+    } else {
+      const err = await res.json();
+      alert(err.detail);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function respondFriend(id, action) {
+  try {
+    const res = await fetch(`/api/users/friends/respond/${id}?action=${action}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadProfile();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
+
+function formatVisibilityBadge(post) {
+  if (post.group_name || post.group_id) {
+    return '<span class="badge-visibility"><span class="badge-icon">🔒</span><span class="badge-text"> Group Only</span></span>';
+  }
+  const vis = (post.visibility || '').toLowerCase();
+  if (vis === 'internal-only' || vis === 'internal') {
+    return '<span class="badge-visibility" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);"><span class="badge-icon">🔐</span><span class="badge-text"> Internal Only</span></span>';
+  }
+  if (vis === 'friends') {
+    return '<span class="badge-visibility" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);"><span class="badge-icon">👥</span><span class="badge-text"> Friends Only</span></span>';
+  }
+  if (vis === 'private') {
+    return '<span class="badge-visibility" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><span class="badge-icon">🔒</span><span class="badge-text"> Private</span></span>';
+  }
+  return '<span class="badge-visibility"><span class="badge-icon">🌐</span><span class="badge-text"> Public</span></span>';
+}
+
+function renderProfilePostCard(post) {
+  const initial = post.author_username ? post.author_username.charAt(0).toUpperCase() : 'U';
+  const rawAvatar = post.author_avatar 
+    ? `<img src="${post.author_avatar}" class="user-avatar" style="object-fit: cover;" />`
+    : `<div class="user-avatar">${initial}</div>`;
+  
+  const statusVal = (post.author_online_status || post.online_status || 'unknown').toLowerCase();
+  let statusDotClass = 'unknown';
+  if (statusVal === 'online') statusDotClass = 'online';
+  else if (statusVal === 'offline') statusDotClass = 'offline';
+
+  const avatarHtml = `
+    <div class="avatar-container">
+      ${rawAvatar}
+      <span class="status-indicator ${statusDotClass}" data-username="${post.author_username}" title="Status: ${statusVal}"></span>
+    </div>`;
+  
+  const displayName = post.author_display_name || post.author_username;
+
+  let mediaHtml = '';
+  if (post.media_type === 'image' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <img src="${post.media_url}" alt="Post image attachment" loading="lazy" />
+      </div>`;
+  } else if (post.media_type === 'video' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <video controls preload="metadata">
+          <source src="${post.media_url}">
+          Your browser does not support HTML5 video player.
+        </video>
+      </div>`;
+  }
+
+  const isAuthor = post.author_id === currentUserId;
+  const canDelete = isAuthor || isModeratorOrAdmin;
+  const editBtn = isAuthor ? `
+    <button onclick="enableProfilePostEdit(${post.id})" class="action-btn edit-action-btn" style="margin-left: auto;">
+      <span class="edit-icon">✏️</span> Edit
+    </button>` : '';
+  const deleteBtn = canDelete ? `
+    <button onclick="deleteProfilePost(${post.id})" class="action-btn delete-action-btn" style="${!isAuthor ? 'margin-left: auto;' : ''}">
+      <span class="delete-icon">🗑️</span> Delete ${!isAuthor ? '(Mod)' : ''}
+    </button>` : '';
+
+  let privacyBadgeHtml = formatVisibilityBadge(post);
+  if (isAuthor && !post.group_id) {
+    const currentVis = (post.visibility || 'public').toLowerCase();
+    privacyBadgeHtml = `
+      <select onfocus="this.setAttribute('data-prev', this.value)" onchange="updateProfilePostPrivacy(${post.id}, this.value, this)" class="form-control" title="Change Post Privacy" style="width: auto; padding: 0.15rem 0.5rem; font-size: 0.78rem; border-radius: var(--radius-full); cursor: pointer; background: var(--input-bg); color: var(--text-main); font-weight: 500; border: 1px solid var(--primary-red);">
+        <option value="public" ${currentVis === 'public' ? 'selected' : ''}>🌐 Public</option>
+        <option value="friends" ${currentVis === 'friends' ? 'selected' : ''}>👥 Friends Only</option>
+        <option value="internal" ${currentVis === 'internal' || currentVis === 'internal-only' ? 'selected' : ''}>🔐 Internal Only</option>
+        <option value="private" ${currentVis === 'private' ? 'selected' : ''}>🔒 Private</option>
+      </select>
+    `;
+  }
+
+  const comments = post.comments || [];
+  const commentsHtml = comments.map(c => {
+    const cName = c.author_display_name || c.author_username;
+    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+    const cAvatarHtml = c.author_avatar 
+      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+    const canDeleteComment = c.author_id === currentUserId || post.author_id === currentUserId || isModeratorOrAdmin;
+    const commentDeleteBtn = canDeleteComment ? `
+      <button onclick="deleteProfileComment(${post.id}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+        <span class="delete-icon">🗑️</span> ${! (c.author_id === currentUserId || post.author_id === currentUserId) ? '(Mod)' : ''}
+      </button>
+    ` : '';
+
+    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+
+    return `
+      <div class="comment-item" id="comment-${c.id}">
+        <a href="/profile/${c.author_username}" class="comment-avatar-link">
+          ${cAvatarHtml}
+        </a>
+        <div class="comment-body">
+          <div class="comment-text-content">
+            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+            <span class="comment-text">${escapeHtml(c.content)}</span>
+          </div>
+          <div class="comment-actions-meta">
+            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
+            ${commentDeleteBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="post-card" id="post-${post.id}" style="margin-bottom: 1.25rem;">
+      <div class="post-header">
+        <div class="post-author-info">
+          ${avatarHtml}
+          <div>
+            <a href="/profile/${post.author_username}" class="author-name">${escapeHtml(displayName)}</a>
+            <div class="post-meta">
+              @${escapeHtml(post.author_username)} &bull; ${formatDateTime(post.created_at)}
+              ${post.group_name ? ` in <strong style="color:var(--primary-red);">${escapeHtml(post.group_name)}</strong>` : ''}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          ${renderEphemeralBadge(post.expires_at)}
+          ${privacyBadgeHtml}
+        </div>
+      </div>
+
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      ${mediaHtml}
+
+      <div class="post-actions">
+        <button onclick="toggleProfileLike(${post.id})" class="action-btn like-action-btn ${post.user_has_liked ? 'active' : ''}">
+          ${post.user_has_liked ? '❤️' : '🤍'} <span id="likes-count-${post.id}">${post.likes_count}</span> Likes
+        </button>
+        <button onclick="sharePost(${post.id}, \`${escapeHtml(post.content || '').replace(/`/g, '\\`')}\`)" class="action-btn share-action-btn">
+          🔗 Share
+        </button>
+        ${editBtn}
+        ${deleteBtn}
+      </div>
+
+      <div class="comments-section">
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+          <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitProfileComment(${post.id})">
+          <button onclick="submitProfileComment(${post.id})" class="btn btn-secondary btn-sm">Comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleProfileLike(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const postCard = document.getElementById(`post-${postId}`);
+      if (postCard) {
+        const likeBtn = postCard.querySelector('.like-action-btn');
+        if (likeBtn) {
+          likeBtn.className = `action-btn like-action-btn ${data.liked ? 'active' : ''}`;
+          likeBtn.innerHTML = `${data.liked ? '❤️' : '🤍'} <span id="likes-count-${postId}">${data.likes_count}</span> Likes`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Like toggle failed", err);
+  }
+}
+
+async function submitProfileComment(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content: content })
+    });
+    if (res.ok) {
+      input.value = '';
+      loadUserPosts(true);
+    }
+  } catch (err) {
+    console.error("Comment submission failed", err);
+  }
+}
+
+async function deleteProfileComment(postId, commentId) {
+  if (!confirm("Are you sure you want to delete this comment?")) return;
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadUserPosts(true);
+    }
+  } catch (err) {
+    console.error("Delete comment failed", err);
+  }
+}
+
+async function deleteProfilePost(postId) {
+  if (!confirm("Are you sure you want to delete this post?")) return;
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadUserPosts(true);
+    }
+  } catch (err) {
+    console.error("Delete post failed", err);
+  }
+}
+
+async function updateProfilePostPrivacy(postId, newVisibility, selectEl) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/visibility`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ visibility: newVisibility })
+    });
+    if (res.ok) {
+      selectEl.setAttribute('data-prev', newVisibility);
+      showCustomAlert("Post privacy updated successfully!", "Privacy Settings");
+    } else {
+      selectEl.value = selectEl.getAttribute('data-prev') || newVisibility;
+      showCustomAlert("Could not update post privacy.", "Error");
+    }
+  } catch (err) {
+    selectEl.value = selectEl.getAttribute('data-prev') || newVisibility;
+    showCustomAlert("Error updating privacy: " + err.message, "Error");
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+
+{% block title %}Direct Messages - Antisocial{% endblock %}
+
+{% block content %}
+<div class="card messages-container">
+  
+  <!-- Left Conversations Sidebar -->
+  <div id="messages-sidebar" class="messages-sidebar">
+    <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 0.5rem;">
+      <h2 style="font-size: 1.15rem; color: var(--primary-red); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+        💬 Messages
+      </h2>
+      <div style="display: flex; gap: 0.4rem; align-items: center;">
+        <button type="button" id="msg-sound-toggle-btn" onclick="toggleMessageSound()" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 0.3rem 0.55rem;" title="Toggle incoming message sound">
+          🔊
+        </button>
+        <button type="button" onclick="openNewMessageModal()" class="btn btn-primary btn-sm" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">
+          ➕ New
+        </button>
+      </div>
+    </div>
+
+    <!-- Search / Filter Conversations -->
+    <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+      <input type="text" id="conv-search-input" class="form-control" placeholder="🔍 Search conversations..." oninput="filterConversationsList()" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;" />
+    </div>
+
+    <!-- Conversations Thread List -->
+    <div id="conversations-list" style="flex: 1; min-height: 0; overflow-y: auto;">
+      <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.9rem;">
+        Loading conversations...
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Active Chat Window -->
+  <div id="chat-window-panel" class="chat-window-panel">
+    
+    <!-- Placeholder when no conversation is selected -->
+    <div id="chat-empty-state" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; color: var(--text-muted);">
+      <div style="font-size: 3rem; margin-bottom: 0.75rem;">💬</div>
+      <h3 style="color: var(--text-main); margin-bottom: 0.4rem;">Your Direct Messages</h3>
+      <p style="max-width: 360px; margin: 0 0 1.25rem 0; font-size: 0.9rem;">
+        Select an existing conversation from the left sidebar or click <strong>➕ New Chat</strong> to start messaging a friend.
+      </p>
+      <button type="button" onclick="openNewMessageModal()" class="btn btn-primary btn-sm">Start a Conversation</button>
+    </div>
+
+    <!-- Active Conversation Interface (Hidden by default) -->
+    <div id="chat-active-state" style="display: none; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden;">
+      
+      <!-- Partner Chat Header -->
+      <div id="chat-header" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--card-bg); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; flex-wrap: nowrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1;">
+          <button type="button" id="chat-back-btn" onclick="showSidebarOnMobile()" class="btn btn-secondary btn-sm chat-back-btn" style="display: none; padding: 0.3rem 0.5rem; font-size: 0.8rem; align-items: center; gap: 0.2rem; flex-shrink: 0;">
+            ← Back
+          </button>
+          <div id="chat-partner-avatar-container" style="flex-shrink: 0;"></div>
+          <div style="min-width: 0; overflow: hidden;">
+            <h3 id="chat-partner-name" style="margin: 0; font-size: 0.98rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h3>
+            <a id="chat-partner-username" href="#" style="font-size: 0.78rem; color: var(--text-muted); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></a>
+          </div>
+        </div>
+
+        <!-- In-Conversation Search Controls -->
+        <div class="chat-search-controls" style="display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; margin-left: auto;">
+          <input type="text" id="chat-search-input" class="form-control chat-search-input" placeholder="🔍 Search..." oninput="handleInChatSearchInput()" />
+          <button type="button" id="chat-search-clear-btn" onclick="clearInChatSearch()" class="btn btn-secondary btn-sm" style="display: none; padding: 0.25rem 0.45rem; font-size: 0.75rem;">Clear</button>
+        </div>
+      </div>
+
+      <!-- Messages Bubbles Frame -->
+      <div id="chat-messages-frame" onscroll="handleChatScroll()" style="flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Injected Message Bubbles -->
+      </div>
+
+      <!-- Message Sending Input Form -->
+      <div id="chat-input-bar" style="padding: 0.85rem 1.25rem; border-top: 1px solid var(--border-color); background: var(--card-bg); flex-shrink: 0;">
+        <form id="send-message-form" onsubmit="handleSendMessageSubmit(event)" style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: nowrap;">
+          <input type="text" id="message-text-input" class="form-control" placeholder="Write a message..." autocomplete="off" autocapitalize="sentences" style="flex: 1; min-width: 0; padding: 0.6rem 0.85rem; font-size: 0.9rem;" />
+          <select id="msg-expires-in" class="form-control msg-expires-select" title="Disappearing Message Timer">
+            <option value="">⏳ Keep Permanently</option>
+            <option value="1h">⏳ 1 Hour</option>
+            <option value="24h">⏳ 24 Hours</option>
+            <option value="7d">⏳ 7 Days</option>
+          </select>
+          <button type="submit" class="btn btn-primary chat-send-btn">
+            <span class="send-icon">📩</span> <span class="send-text">Send</span>
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal for Starting a New Chat -->
+<div id="new-chat-modal" class="modal-overlay" style="display: none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="color: var(--primary-red); margin: 0; font-size: 1.15rem;">💬 Start a New Conversation</h3>
+      <button type="button" onclick="closeNewChatModal()" class="modal-close-btn">&times;</button>
+    </div>
+    <form onsubmit="handleStartNewChat(event)">
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="new-chat-username">Recipient Username</label>
+          <input type="text" id="new-chat-username" class="form-control" required placeholder="e.g. john_doe" />
+          <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
+            Ensure the recipient accepts messages from you based on their DM Privacy settings.
+          </span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeNewChatModal()" class="btn btn-secondary btn-sm">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Open Chat</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const currentUserId = parseInt("{{ current_user.id }}");
+
+let conversations = [];
+let activePartnerId = null;
+let chatPollInterval = null;
+let isMessageSoundEnabled = localStorage.getItem('antisocial_msg_sound') !== 'disabled';
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.classList.add('messages-page');
+  updateSoundToggleButtonUI();
+  loadConversationsList();
+  setupMobileKeyboardHandler();
+
+  // Check if URL has ?user_id= or ?username= query param to automatically open chat
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramUserId = urlParams.get('user_id');
+  const paramUsername = urlParams.get('username');
+
+  if (paramUserId) {
+    openChatWithPartner(parseInt(paramUserId));
+  } else if (paramUsername) {
+    startChatByUsername(paramUsername);
+  }
+
+  // Poll for messages every 5 seconds
+  chatPollInterval = setInterval(() => {
+    loadConversationsList(true);
+    if (activePartnerId) {
+      loadChatHistory(activePartnerId, true);
+    }
+  }, 5000);
+});
+
+function toggleMessageSound() {
+  isMessageSoundEnabled = !isMessageSoundEnabled;
+  localStorage.setItem('antisocial_msg_sound', isMessageSoundEnabled ? 'enabled' : 'disabled');
+  updateSoundToggleButtonUI();
+  if (isMessageSoundEnabled) {
+    playIncomingMessageSound();
+    if (typeof showToast === 'function') showToast("Message audio notification enabled 🔊", "info", 2500);
+  } else {
+    if (typeof showToast === 'function') showToast("Message audio notification muted 🔇", "info", 2500);
+  }
+}
+
+function updateSoundToggleButtonUI() {
+  const btn = document.getElementById('msg-sound-toggle-btn');
+  if (btn) {
+    btn.innerHTML = isMessageSoundEnabled ? '🔊' : '🔇';
+    btn.setAttribute('title', isMessageSoundEnabled ? 'Disable incoming message sound' : 'Enable incoming message sound');
+  }
+}
+
+function playIncomingMessageSound() {
+  if (!isMessageSoundEnabled) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const now = ctx.currentTime;
+    
+    // First soft tone (E5 - 659.25Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.15, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.15);
+
+    // Second higher tone (B5 - 987.77Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(987.77, now + 0.1);
+    gain2.gain.setValueAtTime(0.2, now + 0.1);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.1);
+    osc2.stop(now + 0.3);
+  } catch (e) {
+    console.error("Audio chime playback failed", e);
+  }
+}
+
+function scrollMessagesToBottomSmooth() {
+  const frame = document.getElementById('chat-messages-frame');
+  if (!frame) return;
+  
+  frame.scrollTop = frame.scrollHeight;
+  [50, 150, 300, 450, 600].forEach(delay => {
+    setTimeout(() => {
+      frame.scrollTop = frame.scrollHeight;
+    }, delay);
+  });
+}
+
+function setupMobileKeyboardHandler() {
+  const input = document.getElementById('message-text-input');
+  const frame = document.getElementById('chat-messages-frame');
+  const mainContainer = document.querySelector('.main-container');
+
+  function adjustMobileLayoutForKeyboard() {
+    if (window.innerWidth > 768 || !document.body.classList.contains('messages-page')) return;
+    
+    if (window.visualViewport) {
+      const vvHeight = window.visualViewport.height;
+      const headerNav = document.querySelector('.header-nav');
+      const headerHeight = headerNav ? headerNav.getBoundingClientRect().height : 0;
+      const calcHeight = vvHeight - headerHeight;
+      
+      if (mainContainer) {
+        mainContainer.style.marginTop = '0px';
+        mainContainer.style.marginBottom = '0px';
+      }
+    }
+    scrollMessagesToBottomSmooth();
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', adjustMobileLayoutForKeyboard);
+    window.visualViewport.addEventListener('scroll', adjustMobileLayoutForKeyboard);
+  }
+
+  if (input) {
+    input.addEventListener('focus', () => {
+      adjustMobileLayoutForKeyboard();
+      scrollMessagesToBottomSmooth();
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        adjustMobileLayoutForKeyboard();
+        scrollMessagesToBottomSmooth();
+      }, 100);
+    });
+  }
+}
+
+async function loadConversationsList(isSilent = false) {
+  try {
+    const res = await fetch('/api/messages/conversations', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+
+    conversations = await res.json();
+    renderConversationsList();
+    updateUnreadMessagesBadge();
+  } catch (err) {
+    if (!isSilent) console.error("Error loading conversations", err);
+  }
+}
+
+function renderConversationsList() {
+  const container = document.getElementById('conversations-list');
+  const savedScrollTop = container ? container.scrollTop : 0;
+  const filterVal = document.getElementById('conv-search-input').value.trim().toLowerCase();
+
+  const filtered = conversations.filter(c => {
+    if (!filterVal) return true;
+    return c.partner_username.toLowerCase().includes(filterVal) ||
+           c.partner_display_name.toLowerCase().includes(filterVal);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.88rem;">
+        ${filterVal ? 'No matching conversations.' : 'No active chats yet. Click ➕ New Chat to start.'}
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => {
+    const initial = c.partner_username ? c.partner_username.charAt(0).toUpperCase() : 'U';
+    const avatarHtml = c.partner_avatar
+      ? `<img src="${c.partner_avatar}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
+      : `<div class="user-avatar" style="width:38px; height:38px; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${initial}</div>`;
+
+    const statusVal = (c.online_status || 'unknown').toLowerCase();
+    let statusDotClass = 'unknown';
+    if (statusVal === 'online') statusDotClass = 'online';
+    else if (statusVal === 'offline') statusDotClass = 'offline';
+
+    const isActive = activePartnerId === c.partner_id;
+    const bgStyle = isActive ? 'background: var(--input-bg);' : '';
+    const unreadBadge = c.unread_count > 0
+      ? `<span class="badge-visibility" style="background: var(--primary-red); color: white; border: none; padding: 0.15rem 0.45rem; font-size: 0.72rem; font-weight:700;">${c.unread_count}</span>`
+      : '';
+
+    return `
+      <div onclick="openChatWithPartner(${c.partner_id})" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: var(--transition); ${bgStyle}" onmouseover="this.style.background='var(--input-bg)'" onmouseout="if(!${isActive}) this.style.background='transparent'">
+        <div class="avatar-container">
+          ${avatarHtml}
+          <span class="status-indicator ${statusDotClass}" data-username="${c.partner_username}" title="Status: ${statusVal}"></span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.2rem;">
+            <strong style="font-size: 0.92rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(c.partner_display_name)}</strong>
+            <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; margin-left: 0.5rem;">${new Date(c.last_message_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; color: var(--text-muted);">
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${escapeHtml(c.last_message)}</span>
+            ${unreadBadge}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (container) {
+    container.scrollTop = savedScrollTop;
+  }
+}
+
+function filterConversationsList() {
+  renderConversationsList();
+}
+
+let currentChatMessages = [];
+let hasMoreMessages = true;
+let isLoadingOlderMessages = false;
+
+async function openChatWithPartner(partnerId) {
+  activePartnerId = partnerId;
+  hasMoreMessages = true;
+  isLoadingOlderMessages = false;
+  const container = document.querySelector('.messages-container');
+  if (container) container.classList.add('has-active-chat');
+  renderConversationsList();
+
+  const searchInput = document.getElementById('chat-search-input');
+  if (searchInput) searchInput.value = '';
+
+  document.getElementById('chat-empty-state').style.display = 'none';
+  document.getElementById('chat-active-state').style.display = 'flex';
+
+  await loadChatHistory(partnerId, false);
+}
+
+function showSidebarOnMobile() {
+  activePartnerId = null;
+  hasMoreMessages = true;
+  isLoadingOlderMessages = false;
+  const container = document.querySelector('.messages-container');
+  if (container) container.classList.remove('has-active-chat');
+  document.getElementById('chat-active-state').style.display = 'none';
+  document.getElementById('chat-empty-state').style.display = 'flex';
+  renderConversationsList();
+}
+
+async function loadChatHistory(partnerId, isSilent = false) {
+  try {
+    // Determine the query limit: if user already loaded older messages, fetch total current count to check for new messages
+    const currentCount = currentChatMessages.length > 100 ? currentChatMessages.length : 100;
+    const res = await fetch(`/api/messages/conversations/${partnerId}?limit=${currentCount}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      if (!isSilent) showCustomAlert("Could not load message history.", "Error");
+      return;
+    }
+
+    const data = await res.json();
+    const partner = data.partner;
+    const newMessages = data.messages || [];
+
+    if (!isSilent) {
+      if (newMessages.length < 100) {
+        hasMoreMessages = false;
+      } else {
+        hasMoreMessages = true;
+      }
+      currentChatMessages = newMessages;
+      renderChatMessagesStream(false);
+    } else {
+      // Sync messages array with fetched non-expired messages from server
+      const newIds = new Set(newMessages.map(m => m.id));
+      const filteredCurrent = currentChatMessages.filter(m => newIds.has(m.id));
+      const existingIds = new Set(filteredCurrent.map(m => m.id));
+      const appendList = newMessages.filter(m => !existingIds.has(m.id));
+
+      if (appendList.length > 0 || filteredCurrent.length !== currentChatMessages.length) {
+        // Check if any newly appended messages were sent by the chat partner
+        const incomingCount = appendList.filter(m => m.sender_id !== currentUserId).length;
+        if (incomingCount > 0) {
+          playIncomingMessageSound();
+        }
+
+        currentChatMessages = [...filteredCurrent, ...appendList];
+        currentChatMessages.sort((a, b) => a.id - b.id);
+        renderChatMessagesStream(true, false);
+      }
+    }
+
+    // Update Partner Header
+    const initial = partner.username ? partner.username.charAt(0).toUpperCase() : 'U';
+    const avatarHtml = partner.avatar_url
+      ? `<img src="${partner.avatar_url}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:40px; height:40px; font-size:1.1rem; display:flex; align-items:center; justify-content:center;">${initial}</div>`;
+
+    const statusVal = (partner.online_status || 'unknown').toLowerCase();
+    let statusBadgeText = '❓ Unknown';
+    let statusDotClass = 'unknown';
+    if (statusVal === 'online') {
+      statusBadgeText = '🟢 Online';
+      statusDotClass = 'online';
+    } else if (statusVal === 'offline') {
+      statusBadgeText = '⚪ Offline';
+      statusDotClass = 'offline';
+    }
+
+    document.getElementById('chat-partner-avatar-container').innerHTML = `
+      <div class="avatar-container">
+        ${avatarHtml}
+        <span class="status-indicator ${statusDotClass}" data-username="${partner.username}" title="Status: ${statusVal}"></span>
+      </div>
+    `;
+    document.getElementById('chat-partner-name').innerText = partner.display_name;
+    const usernameEl = document.getElementById('chat-partner-username');
+    usernameEl.innerText = `@${partner.username}`;
+    usernameEl.dataset.rawUsername = partner.username;
+    usernameEl.href = `/profile/${partner.username}`;
+  } catch (err) {
+    if (!isSilent) console.error("Error loading chat history", err);
+  }
+}
+
+async function loadOlderMessages() {
+  if (!activePartnerId || !hasMoreMessages || isLoadingOlderMessages || currentChatMessages.length === 0) return;
+  isLoadingOlderMessages = true;
+
+  const oldestMsgId = currentChatMessages[0].id;
+  const frame = document.getElementById('chat-messages-frame');
+  const oldScrollHeight = frame.scrollHeight;
+  const oldScrollTop = frame.scrollTop;
+
+  try {
+    const res = await fetch(`/api/messages/conversations/${activePartnerId}?limit=50&before_id=${oldestMsgId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const olderMessages = data.messages || [];
+
+      if (olderMessages.length < 50) {
+        hasMoreMessages = false;
+      }
+
+      if (olderMessages.length > 0) {
+        // Filter out any duplicate IDs
+        const existingIds = new Set(currentChatMessages.map(m => m.id));
+        const uniqueOlder = olderMessages.filter(m => !existingIds.has(m.id));
+        
+        if (uniqueOlder.length > 0) {
+          currentChatMessages = [...uniqueOlder, ...currentChatMessages];
+          currentChatMessages.sort((a, b) => a.id - b.id);
+          renderChatMessagesStream(true, true);
+          // Maintain scroll position after prepending older messages
+          frame.scrollTop = frame.scrollHeight - oldScrollHeight + oldScrollTop;
+        } else {
+          hasMoreMessages = false;
+        }
+      } else {
+        hasMoreMessages = false;
+      }
+    }
+  } catch (err) {
+    console.error("Error loading older messages", err);
+  } finally {
+    isLoadingOlderMessages = false;
+  }
+}
+
+function handleChatScroll() {
+  const frame = document.getElementById('chat-messages-frame');
+  // Trigger loading older messages ONLY when explicitly scrolling up to top (scrollTop <= 10px)
+  if (frame && frame.scrollTop <= 10 && frame.scrollHeight > frame.clientHeight + 50) {
+    loadOlderMessages();
+  }
+}
+
+function renderChatMessagesStream(isSilent = false, skipAutoScroll = false) {
+  const frame = document.getElementById('chat-messages-frame');
+  const searchInput = document.getElementById('chat-search-input');
+  const clearBtn = document.getElementById('chat-search-clear-btn');
+  const query = searchInput ? searchInput.value.trim() : '';
+
+  if (clearBtn) {
+    clearBtn.style.display = query ? 'inline-block' : 'none';
+  }
+
+  const isScrolledToBottom = frame.scrollHeight - frame.clientHeight <= frame.scrollTop + 100;
+
+  let displayMessages = currentChatMessages;
+  if (query) {
+    displayMessages = currentChatMessages.filter(m => m.content.toLowerCase().includes(query.toLowerCase()));
+  }
+
+  if (displayMessages.length === 0) {
+    if (query) {
+      frame.innerHTML = `<div style="text-align:center; color: var(--text-muted); margin: auto; font-size: 0.9rem;">No messages matching "<strong>${escapeHtml(query)}</strong>" in this conversation.</div>`;
+    } else {
+      frame.innerHTML = `<div style="text-align:center; color: var(--text-muted); margin: auto; font-size: 0.9rem;">No messages yet. Send a message to start chatting!</div>`;
+    }
+    return;
+  }
+
+  frame.innerHTML = displayMessages.map(m => {
+    const isMine = m.sender_id === currentUserId;
+    const alignStyle = isMine ? 'align-self: flex-end; background: var(--primary-red); color: white;' : 'align-self: flex-start; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);';
+    const timeColor = isMine ? 'rgba(255,255,255,0.75)' : 'var(--text-muted)';
+
+    let contentHtml = escapeHtml(m.content);
+    if (query) {
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      contentHtml = contentHtml.replace(regex, `<mark style="background: #fef08a; color: #000; padding: 0 2px; border-radius: 2px;">$1</mark>`);
+    }
+
+    return `
+      <div class="chat-bubble" style="max-width: 70%; padding: 0.65rem 0.95rem; border-radius: 14px; font-size: 0.9rem; line-height: 1.4; word-break: break-word; ${alignStyle}">
+        <div>${contentHtml}</div>
+        <div style="font-size: 0.7rem; color: ${timeColor}; text-align: right; margin-top: 0.25rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem;">
+          ${renderEphemeralBadge(m.expires_at, isMine)}
+          <span>${formatDateTime(m.created_at)}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (!skipAutoScroll) {
+    if (isSilent && !isScrolledToBottom) {
+      // User is reading older messages; maintain exact scroll position
+      return;
+    }
+    scrollMessagesToBottomSmooth();
+  }
+}
+
+function handleInChatSearchInput() {
+  renderChatMessagesStream();
+}
+
+function clearInChatSearch() {
+  const searchInput = document.getElementById('chat-search-input');
+  if (searchInput) {
+    searchInput.value = '';
+    renderChatMessagesStream();
+    searchInput.focus();
+  }
+}
+
+async function handleSendMessageSubmit(e) {
+  e.preventDefault();
+  if (!activePartnerId) return;
+
+  const input = document.getElementById('message-text-input');
+  const expiresSelect = document.getElementById('msg-expires-in');
+  const content = input.value.trim();
+  if (!content) return;
+
+  const expiresIn = expiresSelect ? expiresSelect.value : null;
+
+  const usernameEl = document.getElementById('chat-partner-username');
+  const partnerUsername = usernameEl.dataset.rawUsername || usernameEl.innerText.split(' ')[0].replace('@', '').trim();
+
+  try {
+    const res = await fetch('/api/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        recipient_username: partnerUsername,
+        content: content,
+        expires_in: expiresIn || null
+      })
+    });
+
+    if (res.ok) {
+      input.value = '';
+      await loadChatHistory(activePartnerId, false);
+      scrollMessagesToBottomSmooth();
+      await loadConversationsList(true);
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Unable to send message.", "Message Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error sending message: " + err.message, "Network Error");
+  }
+}
+
+function openNewMessageModal() {
+  document.getElementById('new-chat-modal').style.display = 'flex';
+  document.getElementById('new-chat-username').focus();
+}
+
+function closeNewChatModal() {
+  document.getElementById('new-chat-modal').style.display = 'none';
+}
+
+async function handleStartNewChat(e) {
+  e.preventDefault();
+  const username = document.getElementById('new-chat-username').value.trim();
+  if (!username) return;
+
+  closeNewChatModal();
+  await startChatByUsername(username);
+}
+
+async function startChatByUsername(username) {
+  try {
+    const res = await fetch(`/api/users/profile/${encodeURIComponent(username)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      showCustomAlert(`User @${username} not found.`, "User Error");
+      return;
+    }
+
+    const data = await res.json();
+    openChatWithPartner(data.user_id);
+  } catch (err) {
+    showCustomAlert("Error finding user: " + err.message, "Network Error");
+  }
+}
+</script>
+{% endblock %}

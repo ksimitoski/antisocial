@@ -1,0 +1,51 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Environment variables & secrets
+.env
+*.env
+*.pem
+
+# Python byte-code, cache, and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases, uploads, and runtime data
+*.db
+*.sqlite
+*.sqlite3
+data/
+uploads/
+
+# OS / Editor configuration and temporary files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Frontend build artifacts & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Shell scripts and logs
+*.log
+tmp_*
+scratch/

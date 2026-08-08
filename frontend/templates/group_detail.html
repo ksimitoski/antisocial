@@ -1,0 +1,1106 @@
+{% extends "base.html" %}
+
+{% block title %}Group - Antisocial{% endblock %}
+
+{% block content %}
+<div class="feed-grid">
+  <!-- Left Sidebar Navigation / Group Meta -->
+  <aside>
+    <div class="card" style="position: sticky; top: 80px;">
+      <h3 style="margin-bottom: 0.75rem;">Welcome, <span style="color: var(--primary-red);">{{ current_user.username }}</span>!</h3>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+        Browsing community group space.
+      </p>
+
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem;">
+        <li><a href="{{ url_for('profile', username=current_user.username) }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👤 My Profile</a></li>
+        <li><a href="{{ url_for('friends') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👥 Friends</a></li>
+        <li><a href="{{ url_for('groups') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">👪 Groups</a></li>
+        <li><a href="{{ url_for('settings') }}" style="color: var(--text-main); text-decoration: none; font-weight: 500;">⚙️ Privacy Settings</a></li>
+      </ul>
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <a href="{{ url_for('groups') }}" class="btn btn-secondary btn-sm" style="width: 100%; text-align: center; text-decoration: none;">
+          ← Back to All Groups
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Feed Area for Group -->
+  <section>
+    <!-- Group Details Header Card -->
+    <div id="group-details-header" class="card" style="margin-bottom: 1.5rem;">
+      <div style="text-align: center; color: var(--text-muted); padding: 1rem;">Loading group details...</div>
+    </div>
+
+    <!-- Admin / Creator Group Management Section -->
+    <div id="group-admin-panel" class="card" style="display: none; margin-bottom: 1.5rem; border: 1px solid var(--primary-red); background: rgba(220, 38, 38, 0.02);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <h3 style="color: var(--primary-red); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+          ⚙️ Group Management & Settings
+        </h3>
+        <button id="toggle-admin-btn" type="button" class="btn btn-secondary btn-sm" onclick="toggleAdminPanelSection()">
+          Collapse Panel ▲
+        </button>
+      </div>
+
+      <div id="admin-panel-content">
+        <!-- Tab Navigation for Admin Options -->
+        <div style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; padding-bottom: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-sm admin-tab-btn active" onclick="switchAdminTab('settings')">⚙️ Settings</button>
+          <button type="button" class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('requests')">
+            📩 Requests <span id="requests-badge" class="badge-visibility" style="display:none; background: var(--primary-red); color: white;">0</span>
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('members')">👥 Manage Members</button>
+          <button type="button" class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('invite')">✉️ Invite User</button>
+          <button type="button" class="btn btn-secondary btn-sm admin-tab-btn" onclick="switchAdminTab('bans')">🚫 Banned Users</button>
+        </div>
+
+        <!-- 1. Settings Tab -->
+        <div id="admin-tab-settings" class="admin-tab-content">
+          <form id="edit-group-form" onsubmit="saveGroupSettings(event)" style="display: flex; flex-direction: column; gap: 0.88rem;">
+            <div class="form-group" style="margin: 0;">
+              <label for="edit-group-name">Group Name</label>
+              <input type="text" id="edit-group-name" class="form-control" required />
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label for="edit-group-desc">Description</label>
+              <textarea id="edit-group-desc" class="form-control" style="min-height: 60px;"></textarea>
+            </div>
+            <div style="display: flex; gap: 1.25rem; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                <input type="checkbox" id="edit-group-private" />
+                🔒 Private Group (Approval required to join)
+              </label>
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2. Requests Tab -->
+        <div id="admin-tab-requests" class="admin-tab-content" style="display: none;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Pending Join Requests</h4>
+          <div id="join-requests-list">
+            <div style="color: var(--text-muted); font-size: 0.9rem;">No pending join requests.</div>
+          </div>
+        </div>
+
+        <!-- 3. Members Tab -->
+        <div id="admin-tab-members" class="admin-tab-content" style="display: none;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Group Members Roster</h4>
+          <div id="group-members-list">
+            <div style="color: var(--text-muted); font-size: 0.9rem;">Loading members...</div>
+          </div>
+        </div>
+
+        <!-- 4. Invite Tab -->
+        <div id="admin-tab-invite" class="admin-tab-content" style="display: none;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Invite User to Group</h4>
+          <form id="invite-user-form" onsubmit="inviteUser(event)" style="display: flex; gap: 0.5rem; max-width: 450px;">
+            <input type="text" id="invite-username-input" class="form-control" placeholder="Enter username or email..." required />
+            <button type="submit" class="btn btn-primary btn-sm">Invite</button>
+          </form>
+        </div>
+
+        <!-- 5. Bans Tab -->
+        <div id="admin-tab-bans" class="admin-tab-content" style="display: none;">
+          <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">Banned Users</h4>
+          <div id="banned-users-list">
+            <div style="color: var(--text-muted); font-size: 0.9rem;">No banned users.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Group Post Card (Rendered if user is member) -->
+    <div id="create-group-post-card" class="card" style="display: none; margin-bottom: 1.5rem;">
+      <h3 style="margin-bottom: 1rem; color: var(--primary-red);" id="create-post-title">Post in Group</h3>
+
+      <form id="create-group-post-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <textarea id="group-post-content" name="content" class="form-control" placeholder="Share something with group members..." autocapitalize="sentences"></textarea>
+        </div>
+
+        <!-- Drag & Drop Media Attachment Dropzone -->
+        <div id="group-media-dropzone" class="media-dropzone">
+          <div class="dropzone-prompt" style="color: var(--text-muted); font-size: 0.88rem;">
+            📁 <strong>Drag & Drop Image Here</strong> or <span style="color: var(--primary-red); text-decoration: underline;">browse files</span>
+          </div>
+          <input type="file" id="group-file-input" name="file" accept="image/*" style="display: none;">
+          <div id="group-dropzone-preview-container"></div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <button type="submit" class="btn btn-primary" style="margin-left: auto;">Publish to Group</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Search Group Posts Card -->
+    <div id="search-group-posts-card" class="card" style="margin-bottom: 1.5rem; display: none;">
+      <h3 style="margin-bottom: 0.75rem; color: var(--primary-red); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+        🔍 Search Group Feed
+      </h3>
+      <form id="search-group-posts-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <div style="flex: 2; min-width: 180px;">
+            <input type="text" id="search-text-input" class="form-control" placeholder="Search post text..." />
+          </div>
+          <div style="flex: 1; min-width: 140px;">
+            <input type="text" id="search-user-input" class="form-control" placeholder="Filter by username..." />
+          </div>
+          <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Search</button>
+          <button type="button" id="clear-search-btn" class="btn btn-secondary" onclick="clearGroupSearch()" style="white-space: nowrap; display: none;">Clear</button>
+        </div>
+      </form>
+      <div id="search-status-bar" style="display: none; margin-top: 0.75rem; font-size: 0.88rem; color: var(--primary-red); font-weight: 500;"></div>
+    </div>
+
+    <!-- Feed Container -->
+    <div id="group-feed-container">
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        Loading group feed...
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const currentUsername = "{{ current_user.username }}";
+const currentUserId = parseInt("{{ current_user.id }}");
+const isModeratorOrAdmin = {{ 'true' if (current_user and current_user.is_moderator) else 'false' }};
+const groupId = parseInt("{{ group_id }}");
+
+let currentGroupData = null;
+let currentSkip = 0;
+const LIMIT = 10;
+let isLoading = false;
+let hasMore = true;
+
+let searchQuery = '';
+let searchUser = '';
+let isAdminPanelCollapsed = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupGroupSearch();
+  loadGroupDetails();
+  setupMediaDropzone('group-media-dropzone', 'group-file-input', 'group-dropzone-preview-container');
+
+  const groupPostContentInput = document.getElementById('group-post-content');
+  if (groupPostContentInput) {
+    groupPostContentInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const postForm = document.getElementById('create-group-post-form');
+        if (postForm) {
+          if (typeof postForm.requestSubmit === 'function') {
+            postForm.requestSubmit();
+          } else {
+            postForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
+        }
+      }
+    });
+  }
+
+  const postForm = document.getElementById('create-group-post-form');
+  postForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const postContentInput = document.getElementById('group-post-content');
+    const contentVal = postContentInput ? postContentInput.value : '';
+
+    const formData = new FormData(postForm);
+    formData.set('content', contentVal);
+    formData.set('group_id', groupId);
+    formData.set('visibility', 'group');
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        postForm.reset();
+        clearGroupMediaAttachment();
+        resetAndLoadGroupFeed();
+      } else {
+        const err = await res.json();
+        let errMsg = "Failed to create group post";
+        if (typeof err.detail === 'string') {
+          errMsg = err.detail;
+        } else if (Array.isArray(err.detail) && err.detail.length > 0) {
+          errMsg = err.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+        }
+        showCustomAlert(errMsg, "Publish Error");
+      }
+    } catch (err) {
+      showCustomAlert("Network error publishing post: " + err.message, "Network Error");
+    }
+  });
+
+  window.addEventListener('scroll', handleScroll);
+});
+
+async function loadGroupDetails() {
+  const header = document.getElementById('group-details-header');
+  try {
+    const res = await fetch(`/api/groups/${groupId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      header.innerHTML = `<div class="alert alert-danger">Group not found or unable to fetch details.</div>`;
+      return;
+    }
+
+    currentGroupData = await res.json();
+    document.title = `${currentGroupData.name} - Antisocial Groups`;
+
+    const privacyBadges = currentGroupData.is_private ? '<span class="badge-icon">🔒</span><span class="badge-text"> Private</span>' : '<span class="badge-icon">🌐</span><span class="badge-text"> Public</span>';
+
+    let actionBtnHtml = '';
+    if (currentGroupData.is_banned) {
+      actionBtnHtml = `<span class="badge-visibility" style="background: rgba(239,68,68,0.15); color:#ef4444;">🚫 Banned</span>`;
+    } else if (currentGroupData.is_member) {
+      actionBtnHtml = `<button onclick="toggleGroupMembership(false)" class="btn btn-secondary">Leave Group</button>`;
+    } else if (currentGroupData.has_requested_join) {
+      actionBtnHtml = `<button class="btn btn-secondary" disabled>⏳ Request Pending</button>`;
+    } else if (currentGroupData.is_private) {
+      actionBtnHtml = `<button onclick="toggleGroupMembership(true)" class="btn btn-primary">📩 Request to Join</button>`;
+    } else {
+      actionBtnHtml = `<button onclick="toggleGroupMembership(true)" class="btn btn-primary">Join Group</button>`;
+    }
+
+    header.innerHTML = `
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.4rem;">
+            <h2 style="color: var(--primary-red); margin: 0;">${escapeHtml(currentGroupData.name)}</h2>
+            <span class="badge-visibility" style="background: rgba(220, 38, 38, 0.12); color: var(--primary-red); border-color: rgba(220, 38, 38, 0.3);">
+              ${privacyBadges}
+            </span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 0.6rem;">
+            ${escapeHtml(currentGroupData.description || 'No description provided.')}
+          </p>
+          <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Created by <strong>@${escapeHtml(currentGroupData.creator_username)}</strong> &bull; ${currentGroupData.member_count} Members
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          ${actionBtnHtml}
+          <a href="{{ url_for('groups') }}" class="btn btn-secondary">← All Groups</a>
+        </div>
+      </div>
+    `;
+
+    // Populate and show Admin Panel if user is Group Admin/Creator
+    const adminPanel = document.getElementById('group-admin-panel');
+    if (currentGroupData.is_admin || currentGroupData.is_creator) {
+      adminPanel.style.display = 'block';
+      document.getElementById('edit-group-name').value = currentGroupData.name || '';
+      document.getElementById('edit-group-desc').value = currentGroupData.description || '';
+      document.getElementById('edit-group-private').checked = !!currentGroupData.is_private;
+
+      renderAdminRequests(currentGroupData.join_requests || []);
+      renderAdminMembers(currentGroupData.members || []);
+      renderAdminBans(currentGroupData.bans || []);
+    } else {
+      adminPanel.style.display = 'none';
+    }
+
+    const createPostCard = document.getElementById('create-group-post-card');
+    const searchCard = document.getElementById('search-group-posts-card');
+    const createTitle = document.getElementById('create-post-title');
+
+    const canViewFeed = currentGroupData.is_member || currentGroupData.is_staff;
+
+    if (canViewFeed) {
+      createPostCard.style.display = 'block';
+      searchCard.style.display = 'block';
+      createTitle.innerText = `Post in ${currentGroupData.name}`;
+      resetAndLoadGroupFeed();
+    } else {
+      createPostCard.style.display = 'none';
+      searchCard.style.display = 'none';
+      const container = document.getElementById('group-feed-container');
+      
+      let promptMessage = `Group posts are private. Only members of <strong>${escapeHtml(currentGroupData.name)}</strong> can view and publish posts.`;
+      let joinBtnHtml = '';
+      if (currentGroupData.is_banned) {
+        promptMessage = `🚫 You have been banned from this group by an administrator.`;
+      } else if (currentGroupData.has_requested_join) {
+        promptMessage = `⏳ Your join request is currently pending admin approval.`;
+      } else if (currentGroupData.is_private) {
+        joinBtnHtml = `<button onclick="toggleGroupMembership(true)" class="btn btn-primary" style="padding: 0.75rem 1.75rem; font-size: 1rem;">📩 Request to Join Group</button>`;
+      } else {
+        joinBtnHtml = `<button onclick="toggleGroupMembership(true)" class="btn btn-primary" style="padding: 0.75rem 1.75rem; font-size: 1rem;">Join Group to View Feed</button>`;
+      }
+
+      container.innerHTML = `
+        <div class="card" style="text-align: center; padding: 2.5rem 1.5rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🔒</div>
+          <h3 style="color: var(--text-main); margin-bottom: 0.5rem;">Group Content Protected</h3>
+          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem auto;">
+            ${promptMessage}
+          </p>
+          ${joinBtnHtml}
+        </div>
+      `;
+    }
+  } catch (err) {
+    header.innerHTML = `<div class="alert alert-danger">Error loading group info.</div>`;
+  }
+}
+
+async function toggleGroupMembership(join) {
+  const endpoint = join ? `/api/groups/${groupId}/join` : `/api/groups/${groupId}/leave`;
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.status === 'requested') {
+        showCustomAlert("Join request submitted to group admins.", "Request Sent");
+      }
+      loadGroupDetails();
+    } else {
+      showCustomAlert(data.detail || "Action failed", "Group Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error updating group membership: " + err.message, "Network Error");
+  }
+}
+
+/* Admin Panel Functions */
+function toggleAdminPanelSection() {
+  const content = document.getElementById('admin-panel-content');
+  const btn = document.getElementById('toggle-admin-btn');
+  if (isAdminPanelCollapsed) {
+    content.style.display = 'block';
+    btn.innerText = 'Collapse Panel ▲';
+    isAdminPanelCollapsed = false;
+  } else {
+    content.style.display = 'none';
+    btn.innerText = 'Expand Panel ▼';
+    isAdminPanelCollapsed = true;
+  }
+}
+
+function switchAdminTab(tabName) {
+  const tabs = ['settings', 'requests', 'members', 'invite', 'bans'];
+  tabs.forEach(t => {
+    const tabEl = document.getElementById(`admin-tab-${t}`);
+    if (tabEl) tabEl.style.display = (t === tabName) ? 'block' : 'none';
+  });
+
+  const buttons = document.querySelectorAll('.admin-tab-btn');
+  buttons.forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+}
+
+async function saveGroupSettings(e) {
+  e.preventDefault();
+  const name = document.getElementById('edit-group-name').value;
+  const description = document.getElementById('edit-group-desc').value;
+  const is_private = document.getElementById('edit-group-private').checked;
+
+  try {
+    const res = await fetch(`/api/groups/${groupId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, description, is_private })
+    });
+
+    if (res.ok) {
+      showCustomAlert("Group settings updated successfully!", "Settings Saved");
+      loadGroupDetails();
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to update settings", "Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error saving settings: " + err.message, "Network Error");
+  }
+}
+
+function renderAdminRequests(requests) {
+  const container = document.getElementById('join-requests-list');
+  const badge = document.getElementById('requests-badge');
+
+  if (requests.length > 0) {
+    badge.style.display = 'inline-block';
+    badge.innerText = requests.length;
+
+    container.innerHTML = requests.map(r => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:var(--radius-sm); margin-bottom:0.4rem;">
+        <div>
+          <strong>${escapeHtml(r.display_name)}</strong> (@${escapeHtml(r.username)})
+          <span style="font-size:0.75rem; color:var(--text-muted);">&bull; Requested ${new Date(r.requested_at).toLocaleDateString()}</span>
+        </div>
+        <div style="display:flex; gap:0.4rem;">
+          <button onclick="approveRequest(${r.user_id})" class="btn btn-primary btn-sm">Approve ✅</button>
+          <button onclick="rejectRequest(${r.user_id})" class="btn btn-secondary btn-sm">Reject ❌</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    badge.style.display = 'none';
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.88rem;">No pending join requests.</div>`;
+  }
+}
+
+async function approveRequest(userId) {
+  try {
+    const res = await fetch(`/api/groups/${groupId}/requests/${userId}/approve`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadGroupDetails();
+    }
+  } catch (err) {
+    console.error("Approve failed", err);
+  }
+}
+
+async function rejectRequest(userId) {
+  try {
+    const res = await fetch(`/api/groups/${groupId}/requests/${userId}/reject`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadGroupDetails();
+    }
+  } catch (err) {
+    console.error("Reject failed", err);
+  }
+}
+
+function renderAdminMembers(members) {
+  const container = document.getElementById('group-members-list');
+  if (members.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.88rem;">No members.</div>`;
+    return;
+  }
+
+  container.innerHTML = members.map(m => {
+    const isCreator = m.user_id === currentGroupData.creator_id;
+    let actionsHtml = '';
+    if (!isCreator && m.user_id !== currentUserId) {
+      actionsHtml = `
+        <button onclick="removeMember(${m.user_id})" class="btn btn-secondary btn-sm">Remove 🚪</button>
+        <button onclick="banUser(${m.user_id})" class="btn btn-secondary btn-sm" style="color: #ef4444; border-color: rgba(239,68,68,0.4);">Ban 🚫</button>
+      `;
+    }
+
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:var(--radius-sm); margin-bottom:0.4rem;">
+        <div>
+          <a href="/profile/${m.username}" style="text-decoration:none; font-weight:600; color:var(--text-main);">${escapeHtml(m.display_name)}</a>
+          <span style="font-size:0.8rem; color:var(--text-muted);">(@${escapeHtml(m.username)})</span>
+          ${isCreator ? '<span class="badge-visibility" style="background:rgba(220,38,38,0.15); color:var(--primary-red);">Creator</span>' : ''}
+        </div>
+        <div style="display:flex; gap:0.4rem; align-items:center;">
+          ${actionsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function removeMember(userId) {
+  showCustomConfirm("Are you sure you want to remove this user from the group?", "Remove Member", async () => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/members/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        loadGroupDetails();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to remove member");
+      }
+    } catch (err) {
+      showCustomAlert("Error: " + err.message);
+    }
+  });
+}
+
+async function banUser(userId) {
+  showCustomConfirm("Are you sure you want to BAN this user from the group? Banned users cannot view group content or rejoin.", "Ban User", async () => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/ban/${userId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showCustomAlert("User has been banned from the group.", "User Banned");
+        loadGroupDetails();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to ban user");
+      }
+    } catch (err) {
+      showCustomAlert("Error: " + err.message);
+    }
+  });
+}
+
+async function inviteUser(e) {
+  e.preventDefault();
+  const usernameInput = document.getElementById('invite-username-input');
+  const username = usernameInput.value.trim();
+  if (!username) return;
+
+  try {
+    const res = await fetch(`/api/groups/${groupId}/invite`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showCustomAlert(data.message, "Invitation Success");
+      usernameInput.value = '';
+      loadGroupDetails();
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to invite user");
+    }
+  } catch (err) {
+    showCustomAlert("Error inviting user: " + err.message);
+  }
+}
+
+function renderAdminBans(bans) {
+  const container = document.getElementById('banned-users-list');
+  if (bans.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.88rem;">No banned users.</div>`;
+    return;
+  }
+
+  container.innerHTML = bans.map(b => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0.75rem; background:var(--input-bg); border-radius:var(--radius-sm); margin-bottom:0.4rem;">
+      <div>
+        <strong>${escapeHtml(b.display_name)}</strong> (@${escapeHtml(b.username)})
+        <span style="font-size:0.75rem; color:var(--text-muted);">&bull; Banned ${new Date(b.banned_at).toLocaleDateString()}</span>
+      </div>
+      <button onclick="unbanUser(${b.user_id})" class="btn btn-secondary btn-sm">Unban 🔓</button>
+    </div>
+  `).join('');
+}
+
+async function unbanUser(userId) {
+  try {
+    const res = await fetch(`/api/groups/${groupId}/unban/${userId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      showCustomAlert("User unbanned.", "Unbanned");
+      loadGroupDetails();
+    }
+  } catch (err) {
+    console.error("Unban failed", err);
+  }
+}
+
+function setupGroupSearch() {
+  const searchForm = document.getElementById('search-group-posts-form');
+  if (searchForm) {
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      searchQuery = document.getElementById('search-text-input').value.trim();
+      searchUser = document.getElementById('search-user-input').value.trim();
+      updateSearchStatus();
+      resetAndLoadGroupFeed();
+    });
+  }
+}
+
+function clearGroupSearch() {
+  document.getElementById('search-text-input').value = '';
+  document.getElementById('search-user-input').value = '';
+  searchQuery = '';
+  searchUser = '';
+  updateSearchStatus();
+  resetAndLoadGroupFeed();
+}
+
+function updateSearchStatus() {
+  const statusBar = document.getElementById('search-status-bar');
+  const clearBtn = document.getElementById('clear-search-btn');
+  if (!statusBar || !clearBtn) return;
+
+  const parts = [];
+  if (searchQuery) parts.push(`matching text "${searchQuery}"`);
+  if (searchUser) parts.push(`by user "@${searchUser.replace(/^@/, '')}"`);
+
+  if (parts.length > 0) {
+    statusBar.style.display = 'block';
+    statusBar.innerHTML = `Showing results for posts ${parts.join(' and ')}`;
+    clearBtn.style.display = 'inline-block';
+  } else {
+    statusBar.style.display = 'none';
+    statusBar.innerHTML = '';
+    clearBtn.style.display = 'none';
+  }
+}
+
+function handleScroll() {
+  if (isLoading || !hasMore || !currentGroupData || !(currentGroupData.is_member || currentGroupData.is_staff)) return;
+  const scrollPosition = window.innerHeight + window.scrollY;
+  const threshold = document.documentElement.scrollHeight - 300;
+  if (scrollPosition >= threshold) {
+    loadMoreGroupPosts();
+  }
+}
+
+function resetAndLoadGroupFeed() {
+  currentSkip = 0;
+  hasMore = true;
+  isLoading = false;
+  const container = document.getElementById('group-feed-container');
+  container.innerHTML = '';
+  loadMoreGroupPosts();
+}
+
+async function loadMoreGroupPosts() {
+  if (isLoading || !hasMore || !currentGroupData || !(currentGroupData.is_member || currentGroupData.is_staff)) return;
+  isLoading = true;
+
+  const container = document.getElementById('group-feed-container');
+  
+  let spinner = document.getElementById('group-feed-spinner');
+  if (!spinner) {
+    spinner = document.createElement('div');
+    spinner.id = 'group-feed-spinner';
+    spinner.style.textAlign = 'center';
+    spinner.style.padding = '1.5rem';
+    spinner.style.color = 'var(--text-muted)';
+    spinner.innerHTML = 'Loading group posts...';
+    container.appendChild(spinner);
+  }
+
+  try {
+    let url = `/api/posts?group_id=${groupId}&skip=${currentSkip}&limit=${LIMIT}`;
+    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+    if (searchUser) url += `&username=${encodeURIComponent(searchUser)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+
+    if (!res.ok) {
+      if (currentSkip === 0) {
+        container.innerHTML = `<div class="alert alert-danger">Unable to load group feed.</div>`;
+      }
+      isLoading = false;
+      return;
+    }
+
+    const posts = await res.json();
+
+    if (currentSkip === 0 && posts.length === 0) {
+      container.innerHTML = `<div class="card" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">No posts published in this group yet. Be the first to share!</div>`;
+      hasMore = false;
+      isLoading = false;
+      return;
+    }
+
+    if (posts.length < LIMIT) {
+      hasMore = false;
+    }
+
+    const postsHtml = posts.map(post => renderPostCard(post)).join('');
+    
+    if (currentSkip === 0) {
+      container.innerHTML = postsHtml;
+    } else {
+      container.insertAdjacentHTML('beforeend', postsHtml);
+    }
+
+    currentSkip += posts.length;
+
+    if (!hasMore && currentSkip > 0) {
+      const endNotice = document.createElement('div');
+      endNotice.style.textAlign = 'center';
+      endNotice.style.padding = '1.5rem';
+      endNotice.style.color = 'var(--text-muted)';
+      endNotice.style.fontSize = '0.9rem';
+      endNotice.innerHTML = '🎉 You\'ve reached the end of this group\'s feed.';
+      container.appendChild(endNotice);
+    }
+
+    if (hasMore && document.documentElement.scrollHeight <= window.innerHeight + 100) {
+      isLoading = false;
+      loadMoreGroupPosts();
+      return;
+    }
+
+  } catch (err) {
+    if (spinner && spinner.parentNode) {
+      spinner.parentNode.removeChild(spinner);
+    }
+    if (currentSkip === 0) {
+      container.innerHTML = `<div class="alert alert-danger">Error connecting to server.</div>`;
+    }
+  } finally {
+    isLoading = false;
+  }
+}
+
+function renderPostCard(post) {
+  const initial = post.author_username ? post.author_username.charAt(0).toUpperCase() : 'U';
+  const rawAvatar = post.author_avatar 
+    ? `<img src="${post.author_avatar}" class="user-avatar" style="object-fit: cover;" />`
+    : `<div class="user-avatar">${initial}</div>`;
+
+  const statusVal = (post.author_online_status || post.online_status || 'unknown').toLowerCase();
+  let statusDotClass = 'unknown';
+  if (statusVal === 'online') statusDotClass = 'online';
+  else if (statusVal === 'offline') statusDotClass = 'offline';
+
+  const avatarHtml = `
+    <div class="avatar-container">
+      ${rawAvatar}
+      <span class="status-indicator ${statusDotClass}" data-username="${post.author_username}" title="Status: ${statusVal}"></span>
+    </div>`;
+
+  const displayName = post.author_display_name || post.author_username;
+
+  let mediaHtml = '';
+  if (post.media_type === 'image' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <img src="${post.media_url}" alt="Post image attachment" loading="lazy" />
+      </div>`;
+  } else if (post.media_type === 'video' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <video controls preload="metadata">
+          <source src="${post.media_url}">
+          Your browser does not support HTML5 video player.
+        </video>
+      </div>`;
+  }
+
+  const isAuthor = post.author_id === currentUserId;
+  const canDelete = isAuthor || isModeratorOrAdmin;
+  const editBtn = isAuthor ? `
+    <button onclick="enablePostEdit(${post.id})" class="action-btn edit-action-btn" style="margin-left: auto;">
+      <span class="edit-icon">✏️</span> Edit
+    </button>` : '';
+  const deleteBtn = canDelete ? `
+    <button onclick="deletePost(${post.id})" class="action-btn delete-action-btn" style="${!isAuthor ? 'margin-left: auto;' : ''}">
+      <span class="delete-icon">🗑️</span> Delete ${!isAuthor ? '(Mod)' : ''}
+    </button>` : '';
+
+  const commentsHtml = post.comments.map(c => {
+    const cName = c.author_display_name || c.author_username;
+    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+    const cAvatarHtml = c.author_avatar 
+      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+    const canDeleteComment = c.author_id === currentUserId || post.author_id === currentUserId || isModeratorOrAdmin;
+    const commentDeleteBtn = canDeleteComment ? `
+      <button onclick="deleteComment(${post.id}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+        <span class="delete-icon">🗑️</span> ${! (c.author_id === currentUserId || post.author_id === currentUserId) ? '(Mod)' : ''}
+      </button>
+    ` : '';
+
+    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+
+    return `
+      <div class="comment-item" id="comment-${c.id}">
+        <a href="/profile/${c.author_username}" class="comment-avatar-link">
+          ${cAvatarHtml}
+        </a>
+        <div class="comment-body">
+          <div class="comment-text-content">
+            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+            <span class="comment-text">${escapeHtml(c.content)}</span>
+          </div>
+          <div class="comment-actions-meta">
+            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
+            ${commentDeleteBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="post-card" id="post-${post.id}">
+      <div class="post-header">
+        <div class="post-author-info">
+          ${avatarHtml}
+          <div>
+            <a href="/profile/${post.author_username}" class="author-name">${escapeHtml(displayName)}</a>
+            <div class="post-meta">
+              @${escapeHtml(post.author_username)} &bull; ${formatDateTime(post.created_at)}
+            </div>
+          </div>
+        </div>
+        <span class="badge-visibility" style="background: rgba(220, 38, 38, 0.12); color: var(--primary-red); border-color: rgba(220, 38, 38, 0.3);"><span class="badge-icon">🔒</span><span class="badge-text"> Group Only</span></span>
+      </div>
+
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      ${mediaHtml}
+
+      <div class="post-actions">
+        <button onclick="toggleLike(${post.id})" class="action-btn like-action-btn ${post.user_has_liked ? 'active' : ''}">
+          ${post.user_has_liked ? '❤️' : '🤍'} <span id="likes-count-${post.id}">${post.likes_count}</span> Likes
+        </button>
+        <button onclick="sharePost(${post.id}, \`${escapeHtml(post.content || '').replace(/`/g, '\\`')}\`)" class="action-btn share-action-btn">
+          🔗 Share
+        </button>
+        ${editBtn}
+        ${deleteBtn}
+      </div>
+
+      <div class="comments-section">
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+          <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+          <button onclick="submitComment(${post.id})" class="btn btn-secondary btn-sm">Comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleLike(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const postCard = document.getElementById(`post-${postId}`);
+      if (postCard) {
+        const likeBtn = postCard.querySelector('.like-action-btn');
+        if (likeBtn) {
+          likeBtn.className = `action-btn like-action-btn ${data.liked ? 'active' : ''}`;
+          likeBtn.innerHTML = `${data.liked ? '❤️' : '🤍'} <span id="likes-count-${postId}">${data.likes_count}</span> Likes`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Like toggle failed", err);
+  }
+}
+
+async function submitComment(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  const content = input.value.trim();
+  if (!content) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content })
+    });
+
+    if (res.ok) {
+      const c = await res.json();
+      input.value = '';
+      const commentsList = document.getElementById(`comments-list-${postId}`);
+      if (commentsList) {
+        const cName = c.author_display_name || c.author_username;
+        const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+        const cAvatarHtml = c.author_avatar 
+          ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+          : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+
+        const dateStr = c.created_at ? formatDateTime(c.created_at) : formatDateTime(new Date().toISOString());
+
+        const commentEl = document.createElement('div');
+        commentEl.className = 'comment-item';
+        commentEl.id = `comment-${c.id}`;
+        commentEl.innerHTML = `
+          <a href="/profile/${c.author_username}" class="comment-avatar-link">
+            ${cAvatarHtml}
+          </a>
+          <div class="comment-body">
+            <div class="comment-text-content">
+              <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+              <span class="comment-text">${escapeHtml(c.content)}</span>
+            </div>
+            <div class="comment-actions-meta">
+              <span class="comment-date">${escapeHtml(dateStr)}</span>
+              <button onclick="deleteComment(${postId}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+                <span class="delete-icon">🗑️</span>
+              </button>
+            </div>
+          </div>
+        `;
+        commentsList.prepend(commentEl);
+        commentsList.scrollTop = 0;
+      }
+    }
+  } catch (err) {
+    console.error("Comment failed", err);
+  }
+}
+
+async function deletePost(postId) {
+  showCustomConfirm("Are you sure you want to delete this group post?", "Delete Post", async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const postEl = document.getElementById(`post-${postId}`);
+        if (postEl) postEl.remove();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to delete post.");
+      }
+    } catch (err) {
+      showCustomAlert("Delete failed: " + err.message);
+    }
+  });
+}
+
+function enablePostEdit(postId) {
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (!contentEl) return;
+  const rawText = contentEl.getAttribute('data-raw-content') || contentEl.innerText;
+
+  contentEl.innerHTML = `<div id="post-edit-box-${postId}" style="margin: 0.2rem 0;"><textarea id="post-edit-input-${postId}" class="form-control" rows="3" style="width: 100%; margin-top: 0.2rem; margin-bottom: 0.35rem;">${escapeHtml(rawText)}</textarea><div style="display: flex; gap: 0.5rem; justify-content: flex-end;"><button type="button" onclick="cancelPostEdit(${postId})" class="btn btn-secondary btn-sm">Cancel</button><button type="button" onclick="submitPostEdit(${postId})" class="btn btn-primary btn-sm">Save Edit</button></div></div>`;
+}
+
+async function submitPostEdit(postId) {
+  const input = document.getElementById(`post-edit-input-${postId}`);
+  if (!input) return;
+  const newContent = input.value.trim();
+
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content: newContent })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const contentEl = document.getElementById(`post-content-text-${postId}`);
+      if (contentEl) {
+        contentEl.setAttribute('data-raw-content', data.content);
+        contentEl.innerText = data.content;
+      }
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to update post content", "Edit Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error updating post: " + err.message, "Network Error");
+  }
+}
+
+function cancelPostEdit(postId) {
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (contentEl) {
+    const rawText = contentEl.getAttribute('data-raw-content') || '';
+    contentEl.innerText = rawText;
+  }
+}
+
+async function deleteComment(postId, commentId) {
+  showCustomConfirm("Are you sure you want to delete this comment?", "Delete Comment", async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const cEl = document.getElementById(`comment-${commentId}`);
+        if (cEl) cEl.remove();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to delete comment.");
+      }
+    } catch (err) {
+      showCustomAlert("Delete comment failed: " + err.message);
+    }
+  });
+}
+
+function previewGroupMediaAttachment(input) {
+  const box = document.getElementById('group-media-preview-box');
+  const img = document.getElementById('group-preview-image');
+  const video = document.getElementById('group-preview-video');
+
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) {
+      showCustomAlert("The selected file format is not supported. Only image attachments are accepted.");
+      clearGroupMediaAttachment();
+      return;
+    }
+    const url = URL.createObjectURL(file);
+
+    img.src = url;
+    img.style.display = 'block';
+    if (video) { video.style.display = 'none'; video.src = ''; }
+    box.style.display = 'block';
+  } else {
+    clearGroupMediaAttachment();
+  }
+}
+
+function clearGroupMediaAttachment() {
+  const fileInput = document.getElementById('group-file-input');
+  if (fileInput) fileInput.value = '';
+  const box = document.getElementById('group-media-preview-box');
+  const img = document.getElementById('group-preview-image');
+  const video = document.getElementById('group-preview-video');
+  const dropzonePreview = document.getElementById('group-dropzone-preview-container');
+  if (img) { img.src = ''; img.style.display = 'none'; }
+  if (video) { video.src = ''; video.style.display = 'none'; }
+  if (box) box.style.display = 'none';
+  if (dropzonePreview) dropzonePreview.innerHTML = '';
+}
+</script>
+{% endblock %}

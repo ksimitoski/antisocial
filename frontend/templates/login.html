@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Log In - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 450px; margin: 3rem auto;">
+  <div class="card">
+    <h2 style="margin-bottom: 1.5rem; text-align: center; color: var(--primary-red);">Log In to Antisocial</h2>
+
+    <form method="POST" action="{{ url_for('login') }}">
+      {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+      {% endif %}
+      <div class="form-group">
+        <label for="username_or_email">Username or Email</label>
+        <input type="text" id="username_or_email" name="username_or_email" class="form-control" required placeholder="Enter username or email">
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" class="form-control" required placeholder="Enter password">
+      </div>
+
+      <div class="form-group">
+        <label for="totp_code">2FA Authenticator Code / Recovery Code (if 2FA enabled)</label>
+        <input type="text" id="totp_code" name="totp_code" class="form-control" placeholder="6-digit code (e.g. 123456)" maxlength="12" autocomplete="off">
+      </div>
+
+      <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; margin-bottom: 0.5rem;">
+        <input type="checkbox" id="remember_me" name="remember_me" value="1" style="width: 17px; height: 17px; cursor: pointer; accent-color: var(--primary-red);">
+        <label for="remember_me" style="margin: 0; cursor: pointer; font-size: 0.92rem; color: var(--text-main); font-weight: 500;">
+          Keep me logged in
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Log In</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.5rem;">
+      <div>Forgot password? <a href="{{ url_for('reset_password_page') }}" style="color: var(--primary-red); font-weight: 600;">Reset Password</a></div>
+      <div>Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--primary-red); font-weight: 600;">Sign up</a></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

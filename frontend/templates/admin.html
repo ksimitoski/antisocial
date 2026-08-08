@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+  <!-- Site Customization & Banner Card -->
+  <div class="card">
+
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">🎨 Site Announcements & Page Customization</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+      Customize global banner messages and site-wide page announcement text displayed across Antisocial.
+    </p>
+
+    <div class="alert alert-info" style="margin-bottom: 1.5rem; line-height: 1.5;">
+      <strong>🔒 Privacy Enforcement Active:</strong> Site announcements and logo customizations affect public headers
+      and notices. Personal user profiles, private posts, and direct messages remain strictly isolated from
+      administrative access.
+    </div>
+
+
+    <form id="site-settings-form">
+      <!-- WYSIWYG Header Banner / Brand Logo Editor -->
+
+      <div class="form-group">
+        <label>🏷️ Header Banner / Brand Logo WYSIWYG Editor</label>
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">
+          Select text and use the color swatches or color picker to apply custom colors to each word or character!
+        </span>
+
+        <!-- WYSIWYG Editor Toolbar -->
+        <div
+          style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; background: var(--input-bg); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm) var(--radius-sm) 0 0; border: 1px solid var(--border-color); border-bottom: none;">
+          <!-- Formatting Buttons -->
+          <button type="button" onmousedown="event.preventDefault()" onclick="formatEditor('bold')"
+            class="btn btn-secondary btn-sm" title="Bold"
+            style="font-weight:bold; min-width:32px; padding:0.25rem 0.5rem;">B</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="formatEditor('italic')"
+            class="btn btn-secondary btn-sm" title="Italic"
+            style="font-style:italic; min-width:32px; padding:0.25rem 0.5rem;">I</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="formatEditor('underline')"
+            class="btn btn-secondary btn-sm" title="Underline"
+            style="text-decoration:underline; min-width:32px; padding:0.25rem 0.5rem;">U</button>
+
+          <div style="height: 24px; width: 1px; background: var(--border-color); margin: 0 0.25rem;"></div>
+
+          <!-- Color Picker -->
+          <label onmousedown="saveBannerSelection()"
+            style="font-size:0.8rem; margin:0; display:flex; align-items:center; gap:0.35rem; cursor:pointer;">
+            🎨 Text Color:
+            <input type="color" id="editor-color-picker" onfocus="saveBannerSelection()"
+              oninput="applyColorToSelection(this.value)" onchange="applyColorToSelection(this.value)"
+              style="border:none; width:30px; height:30px; background:none; cursor:pointer;">
+          </label>
+
+          <!-- Color Swatches -->
+          <div style="display: flex; gap: 0.35rem; align-items: center;">
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#dc2626')"
+              style="width:24px; height:24px; border-radius:50%; background:#dc2626; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Crimson Red"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#3b82f6')"
+              style="width:24px; height:24px; border-radius:50%; background:#3b82f6; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Royal Blue"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#10b981')"
+              style="width:24px; height:24px; border-radius:50%; background:#10b981; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Emerald Green"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#f59e0b')"
+              style="width:24px; height:24px; border-radius:50%; background:#f59e0b; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Amber Gold"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#8b5cf6')"
+              style="width:24px; height:24px; border-radius:50%; background:#8b5cf6; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Purple"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#ec4899')"
+              style="width:24px; height:24px; border-radius:50%; background:#ec4899; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Pink"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#ffffff')"
+              style="width:24px; height:24px; border-radius:50%; background:#ffffff; border:2px solid #666; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="White"></button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="applyColorToSelection('#1e293b')"
+              style="width:24px; height:24px; border-radius:50%; background:#1e293b; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.3);"
+              title="Dark Slate"></button>
+          </div>
+
+          <button type="button" onmousedown="event.preventDefault()" onclick="resetDefaultBanner()"
+            class="btn btn-secondary btn-sm" style="margin-left:auto; font-size:0.78rem; padding:0.2rem 0.5rem;">Reset
+            Default</button>
+        </div>
+
+        <!-- Editable Canvas Box -->
+        <div id="banner-wysiwyg-editor" contenteditable="true" onmouseup="saveBannerSelection()"
+          onkeyup="saveBannerSelection(); updateLiveHeaderPreview()" oninput="updateLiveHeaderPreview()"
+          class="form-control"
+          style="min-height: 52px; font-size: 1.4rem; font-weight: 700; border-radius: 0 0 var(--radius-sm) var(--radius-sm); border-top: none; padding: 0.75rem 1rem; background: var(--card-bg); color: var(--text-main);">
+          🔥 Anti<span style="color:#dc2626">social</span>
+        </div>
+
+
+        <!-- Live Preview Header Box -->
+        <div
+          style="margin-top: 0.75rem; background: var(--input-bg); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+          <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">LIVE
+            HEADER PREVIEW:</span>
+          <div class="header-nav"
+            style="position: static; padding: 0.5rem 1rem; border-radius: var(--radius-sm); background: var(--header-bg); border: 1px solid var(--border-color);">
+            <a class="brand-logo" id="live-header-preview" style="font-size: 1.3rem;">
+              🔥 Anti<span style="color:#dc2626">social</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="page_text">ℹ️ Main Page Notice / Announcement Text</label>
+        <textarea id="page_text" name="page_text" class="form-control" rows="3"
+          placeholder="Enter notice text to display prominently at the top of the main feed & home page..."></textarea>
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.2rem;">Displays a
+          notice card at the top of the Main Feed & Landing Page.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="accent_color_text">🎨 Website Primary Accent Color</label>
+        <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.35rem; flex-wrap: wrap;">
+          <input type="color" id="accent_color_picker" value="#dc2626" onchange="syncAccentColor(this.value)" oninput="syncAccentColor(this.value)" style="border: none; width: 40px; height: 40px; background: none; cursor: pointer;" />
+          <input type="text" id="accent_color_text" class="form-control" value="#dc2626" oninput="syncAccentColor(this.value)" style="width: 120px; font-family: monospace; text-transform: uppercase;" placeholder="#dc2626" />
+          
+          <div style="display: flex; gap: 0.4rem; align-items: center; margin-left: 0.5rem;">
+            <button type="button" onclick="setAccentPreset('#dc2626')" style="width:26px; height:26px; border-radius:50%; background:#dc2626; border:2px solid #fff; cursor:pointer;" title="Crimson Red"></button>
+            <button type="button" onclick="setAccentPreset('#2563eb')" style="width:26px; height:26px; border-radius:50%; background:#2563eb; border:2px solid #fff; cursor:pointer;" title="Royal Blue"></button>
+            <button type="button" onclick="setAccentPreset('#059669')" style="width:26px; height:26px; border-radius:50%; background:#059669; border:2px solid #fff; cursor:pointer;" title="Emerald Green"></button>
+            <button type="button" onclick="setAccentPreset('#d97706')" style="width:26px; height:26px; border-radius:50%; background:#d97706; border:2px solid #fff; cursor:pointer;" title="Amber Gold"></button>
+            <button type="button" onclick="setAccentPreset('#7c3aed')" style="width:26px; height:26px; border-radius:50%; background:#7c3aed; border:2px solid #fff; cursor:pointer;" title="Purple"></button>
+            <button type="button" onclick="setAccentPreset('#db2777')" style="width:26px; height:26px; border-radius:50%; background:#db2777; border:2px solid #fff; cursor:pointer;" title="Pink"></button>
+            <button type="button" onclick="setAccentPreset('#0891b2')" style="width:26px; height:26px; border-radius:50%; background:#0891b2; border:2px solid #fff; cursor:pointer;" title="Cyan"></button>
+          </div>
+        </div>
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+          Replaces the default red theme color for buttons, highlights, active navigation links, and primary UI accents across the entire website.
+        </span>
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label for="site_domain">🌐 Site Domain / Fully Qualified Domain Name (FQDN)</label>
+        <input type="text" id="site_domain" class="form-control" placeholder="https://social.example.com or example.com" />
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+          Specify the domain/FQDN used for links in outgoing emails (verification emails, password resets, activity digests).
+        </span>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Site Settings</button>
+    </form>
+  </div>
+
+  <!-- User Directory & Role Management Card -->
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">🛡️ Platform User Directory & Roles</h3>
+
+    <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+      <strong>🔒 Privacy Enforcement Active:</strong> Administrators can manage user account roles (User, Moderator,
+      Administrator) and system safety. Administrators <em>cannot</em> view or manage user profiles or private posts
+      unless explicitly shared.
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-muted);">
+            <th style="padding: 0.75rem;">ID</th>
+            <th style="padding: 0.75rem;">Username</th>
+            <th style="padding: 0.75rem;">Email</th>
+            <th style="padding: 0.75rem;">Assigned Role</th>
+            <th style="padding: 0.75rem;">Created</th>
+            <th style="padding: 0.75rem; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-user-table-body">
+          <tr>
+            <td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">Loading user
+              directory...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const token = "{{ session.get('access_token') }}";
+  const currentUserId = parseInt("{{ current_user.id }}");
+
+  function syncAccentColor(colorVal) {
+    if (!colorVal) return;
+    document.getElementById('accent_color_picker').value = colorVal;
+    document.getElementById('accent_color_text').value = colorVal;
+    document.documentElement.style.setProperty('--primary-red', colorVal);
+    document.documentElement.style.setProperty('--primary-red-hover', colorVal);
+  }
+
+  function setAccentPreset(hex) {
+    syncAccentColor(hex);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadUsersTable();
+    loadSiteSettings();
+
+    const settingsForm = document.getElementById('site-settings-form');
+    settingsForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        banner_text: document.getElementById('banner-wysiwyg-editor').innerHTML,
+        page_text: document.getElementById('page_text').value,
+        accent_color: document.getElementById('accent_color_text').value.trim(),
+        site_domain: document.getElementById('site_domain').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          showCustomAlert("Site settings and brand logo updated successfully!", "Success", () => {
+            window.location.reload();
+          });
+        } else {
+
+          const err = await res.json();
+          showCustomAlert(err.detail || "Failed to update settings.", "Error");
+        }
+      } catch (err) {
+        showCustomAlert("Error updating site settings: " + err.message, "Error");
+      }
+    });
+  });
+
+  let savedBannerRange = null;
+
+  function saveBannerSelection() {
+    const sel = window.getSelection();
+    const editor = document.getElementById('banner-wysiwyg-editor');
+    if (sel && sel.rangeCount > 0 && editor && editor.contains(sel.anchorNode)) {
+      savedBannerRange = sel.getRangeAt(0).cloneRange();
+    }
+  }
+
+  function restoreBannerSelection() {
+    if (savedBannerRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedBannerRange);
+    }
+  }
+
+  function applyColorToSelection(color) {
+    const editor = document.getElementById('banner-wysiwyg-editor');
+    if (!editor) return;
+    editor.focus();
+    restoreBannerSelection();
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editor.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.color = color;
+      try {
+        range.surroundContents(span);
+      } catch (e) {
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      }
+    } else {
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('foreColor', false, color);
+    }
+
+    saveBannerSelection();
+    updateLiveHeaderPreview();
+  }
+
+  function formatEditor(command, value = null) {
+    const editor = document.getElementById('banner-wysiwyg-editor');
+    if (!editor) return;
+    editor.focus();
+    restoreBannerSelection();
+
+    document.execCommand(command, false, value);
+    saveBannerSelection();
+    updateLiveHeaderPreview();
+  }
+
+  function updateLiveHeaderPreview() {
+    const editor = document.getElementById('banner-wysiwyg-editor');
+    const preview = document.getElementById('live-header-preview');
+    if (editor && preview) {
+      preview.innerHTML = editor.innerHTML;
+    }
+  }
+
+  function resetDefaultBanner() {
+    const editor = document.getElementById('banner-wysiwyg-editor');
+    if (editor) {
+      editor.innerHTML = '🔥 Anti<span style="color:#dc2626">social</span>';
+      updateLiveHeaderPreview();
+    }
+  }
+
+
+  async function loadSiteSettings() {
+    try {
+      const res = await fetch('/api/admin/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.banner_text) {
+          document.getElementById('banner-wysiwyg-editor').innerHTML = data.banner_text;
+          updateLiveHeaderPreview();
+        }
+        if (data.page_text !== undefined) document.getElementById('page_text').value = data.page_text;
+        if (data.accent_color) syncAccentColor(data.accent_color);
+        if (data.site_domain !== undefined) document.getElementById('site_domain').value = data.site_domain;
+      }
+    } catch (err) {
+      console.error("Error loading site settings", err);
+    }
+  }
+
+
+  async function loadUsersTable() {
+    const tbody = document.getElementById('admin-user-table-body');
+    try {
+      const res = await fetch('/api/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        tbody.innerHTML = `<tr><td colspan="6" class="alert alert-danger">Failed loading admin users list. Access restricted.</td></tr>`;
+        return;
+      }
+
+      const users = await res.json();
+
+      tbody.innerHTML = users.map(u => {
+        const isSystemAdmin = u.is_system_admin;
+        const roleStr = u.role || (u.is_admin ? 'admin' : 'user');
+
+        return `
+        <tr style="border-bottom: 1px solid var(--border-color);">
+          <td style="padding: 0.75rem;">#${u.id}</td>
+          <td style="padding: 0.75rem;">
+            <strong>${escapeHtml(u.username)}</strong>
+            ${isSystemAdmin ? `<span class="badge-visibility" style="background:var(--primary-red); color:white; font-weight:bold; margin-left:0.4rem;">System Admin</span>` : ''}
+          </td>
+          <td style="padding: 0.75rem;">${escapeHtml(u.email)}</td>
+          <td style="padding: 0.75rem;">
+            <select onchange="updateUserRole(${u.id}, this.value)" class="form-control" style="width:auto; padding:0.25rem 0.5rem; font-size:0.85rem;" ${isSystemAdmin ? 'disabled' : ''}>
+              <option value="user" ${roleStr === 'user' ? 'selected' : ''}>Standard User</option>
+              <option value="moderator" ${roleStr === 'moderator' ? 'selected' : ''}>🛡️ Moderator</option>
+              <option value="admin" ${roleStr === 'admin' ? 'selected' : ''}>⚡ Administrator</option>
+            </select>
+          </td>
+          <td style="padding: 0.75rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+          <td style="padding: 0.75rem; text-align: right;">
+            <div style="display:flex; gap:0.4rem; justify-content:flex-end;">
+              ${!isSystemAdmin && u.id !== currentUserId ? `
+                <button onclick="adminDeleteUser(${u.id}, '${escapeHtml(u.username)}')" class="btn btn-danger btn-sm">
+                  Purge User
+                </button>
+              ` : `<span style="font-size:0.8rem; color:var(--text-muted);">Protected</span>`}
+            </div>
+          </td>
+        </tr>
+      `;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:red;">Connection error.</td></tr>`;
+    }
+  }
+
+  async function updateUserRole(userId, newRole) {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+
+      if (res.ok) {
+        showCustomAlert(`User role updated to '${newRole}'.`, "Role Updated");
+        loadUsersTable();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to update role.", "Error");
+        loadUsersTable();
+      }
+    } catch (err) {
+      showCustomAlert("Error updating role: " + err.message, "Error");
+    }
+  }
+
+  async function adminDeleteUser(userId, username) {
+    showCustomConfirm(
+      `Are you sure you want to purge user '${username}' (ID: ${userId})? All associated posts and data will be immediately deleted.`,
+      "⚠️ Purge User Account",
+      async () => {
+        try {
+          const res = await fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (res.ok) {
+            showCustomAlert(`User account '${username}' purged.`, "Account Purged");
+            loadUsersTable();
+          } else {
+            const err = await res.json();
+            showCustomAlert(err.detail || "Purge failed.", "Error");
+          }
+        } catch (err) {
+          showCustomAlert("Error executing purge: " + err.message, "Error");
+        }
+      }
+    );
+  }
+
+</script>
+{% endblock %}

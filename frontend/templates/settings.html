@@ -1,0 +1,999 @@
+{% extends "base.html" %}
+
+{% block title %}Settings & Privacy - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 750px; margin: 0 auto;">
+
+  <!-- Profile Avatar Upload Card -->
+  <div class="card" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+    <div id="settings-avatar-preview" class="user-avatar" style="width: 72px; height: 72px; font-size: 1.8rem; flex-shrink: 0; overflow: hidden;">
+      {% if current_user and current_user.avatar_url %}
+        <img src="{{ current_user.avatar_url }}" style="width: 100%; height: 100%; object-fit: cover;" />
+      {% else %}
+        {{ current_user.username[0]|upper }}
+      {% endif %}
+    </div>
+    <div style="flex: 1;">
+      <h3 style="color: var(--primary-red); margin-bottom: 0.25rem;">Profile Avatar</h3>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem;">Upload a custom picture to represent you across Antisocial.</p>
+      <form id="avatar-upload-form" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <input type="file" id="avatar-file-input" name="file" accept="image/*" class="form-control" style="width: auto; font-size: 0.85rem;" required>
+        <button type="submit" class="btn btn-secondary btn-sm">Upload Avatar</button>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="card">
+    <h2 style="color: var(--primary-red); margin-bottom: 1rem;">Profile & Sharing Controls</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+      Customize what information to share and with whom. Changes take effect immediately across the platform.
+    </p>
+
+    <form id="profile-settings-form">
+      <div class="form-group">
+        <label for="display_name">Display Name</label>
+        <input type="text" id="display_name" name="display_name" class="form-control" value="{{ profile.display_name or '' }}" placeholder="e.g. Alex Smith">
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.2rem;">This name will display instead of your username (@{{ current_user.username }}) on everything you post.</span>
+      </div>
+
+      <div class="settings-name-grid">
+        <div class="form-group">
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" name="first_name" class="form-control" value="{{ profile.first_name or '' }}" placeholder="First Name">
+          <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <label style="font-size: 0.8rem; margin: 0; white-space: nowrap;">Share With:</label>
+            <select id="first_name_visibility" name="first_name_visibility" class="form-control" style="width: auto; max-width: 100%; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+              <option value="public" {% if profile.first_name_visibility == 'public' %}selected{% endif %}>🌐 Public</option>
+              <option value="friends" {% if profile.first_name_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+              <option value="private" {% if profile.first_name_visibility == 'private' or not profile.first_name_visibility %}selected{% endif %}>🔒 Private (Only Me)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" name="last_name" class="form-control" value="{{ profile.last_name or '' }}" placeholder="Last Name">
+          <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <label style="font-size: 0.8rem; margin: 0; white-space: nowrap;">Share With:</label>
+            <select id="last_name_visibility" name="last_name_visibility" class="form-control" style="width: auto; max-width: 100%; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+              <option value="public" {% if profile.last_name_visibility == 'public' %}selected{% endif %}>🌐 Public</option>
+              <option value="friends" {% if profile.last_name_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+              <option value="private" {% if profile.last_name_visibility == 'private' or not profile.last_name_visibility %}selected{% endif %}>🔒 Private (Only Me)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="bio">Bio</label>
+        <textarea id="bio" name="bio" class="form-control" placeholder="Tell people about yourself...">{{ profile.bio or '' }}</textarea>
+        <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-size: 0.8rem; margin: 0;">Share Bio With:</label>
+          <select id="bio_visibility" name="bio_visibility" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+            <option value="public" {% if profile.bio_visibility == 'public' or not profile.bio_visibility %}selected{% endif %}>🌐 Public</option>
+            <option value="friends" {% if profile.bio_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+            <option value="private" {% if profile.bio_visibility == 'private' %}selected{% endif %}>🔒 Private (Only Me)</option>
+          </select>
+        </div>
+      </div>
+
+
+      <div class="form-group">
+        <label for="location">Location</label>
+        <input type="text" id="location" name="location" class="form-control" value="{{ profile.location or '' }}" placeholder="e.g. New York, USA">
+        <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-size: 0.8rem; margin: 0;">Share Location With:</label>
+          <select id="location_visibility" name="location_visibility" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+            <option value="public" {% if profile.location_visibility == 'public' or not profile.location_visibility %}selected{% endif %}>🌐 Public</option>
+            <option value="friends" {% if profile.location_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+            <option value="private" {% if profile.location_visibility == 'private' %}selected{% endif %}>🔒 Private (Only Me)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="birthdate">Birthdate</label>
+        <input type="date" id="birthdate" name="birthdate" class="form-control" value="{{ profile.birthdate or '' }}">
+        <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-size: 0.8rem; margin: 0;">Share Birthdate With:</label>
+          <select id="birthdate_visibility" name="birthdate_visibility" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+            <option value="public" {% if profile.birthdate_visibility == 'public' %}selected{% endif %}>🌐 Public</option>
+            <option value="friends" {% if profile.birthdate_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+            <option value="private" {% if profile.birthdate_visibility == 'private' or not profile.birthdate_visibility %}selected{% endif %}>🔒 Private (Only Me)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <input type="text" id="phone" name="phone" class="form-control" value="{{ profile.phone or '' }}" placeholder="+1 (555) 000-0000">
+        <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-size: 0.8rem; margin: 0;">Share Phone With:</label>
+          <select id="phone_visibility" name="phone_visibility" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+            <option value="public" {% if profile.phone_visibility == 'public' %}selected{% endif %}>🌐 Public</option>
+            <option value="friends" {% if profile.phone_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+            <option value="private" {% if profile.phone_visibility == 'private' or not profile.phone_visibility %}selected{% endif %}>🔒 Private (Only Me)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" class="form-control" value="{{ current_user.email or '' }}" placeholder="your.email@example.com">
+        <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-size: 0.8rem; margin: 0;">Share Email With:</label>
+          <select id="email_visibility" name="email_visibility" class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.82rem;">
+            <option value="public" {% if profile.email_visibility == 'public' %}selected{% endif %}>🌐 Public</option>
+            <option value="friends" {% if profile.email_visibility == 'friends' %}selected{% endif %}>👥 Friends Only</option>
+            <option value="private" {% if profile.email_visibility == 'private' or not profile.email_visibility %}selected{% endif %}>🔒 Private (Only Me)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="padding: 1rem; background: var(--input-bg); border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 1rem;">
+        <label for="dm_privacy" style="font-weight: 700; color: var(--primary-red); font-size: 0.95rem; margin-bottom: 0.35rem;">
+          💬 Direct Messages Privacy
+        </label>
+        <select id="dm_privacy" name="dm_privacy" class="form-control" style="max-width: 320px; font-weight: 500;">
+          <option value="friends" {% if profile.dm_privacy == 'friends' or not profile.dm_privacy %}selected{% endif %}>👥 Friends Only (Default)</option>
+          <option value="anyone" {% if profile.dm_privacy == 'anyone' %}selected{% endif %}>🌐 Receive From Anyone</option>
+          <option value="none" {% if profile.dm_privacy == 'none' %}selected{% endif %}>🚫 No Direct Messages</option>
+        </select>
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.35rem;">
+          Control who is allowed to send you private direct messages on Antisocial.
+        </span>
+      </div>
+
+      <div class="form-group" style="padding: 1rem; background: var(--input-bg); border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 1rem;">
+        <label for="online_status" style="font-weight: 700; color: var(--primary-red); font-size: 0.95rem; margin-bottom: 0.35rem;">
+          🟢 Online Status & Visibility
+        </label>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+          <div>
+            <label for="online_status" style="font-size: 0.82rem; margin-bottom: 0.25rem;">My Status:</label>
+            <select id="online_status" name="online_status" class="form-control" style="font-weight: 500;">
+              <option value="online" {% if profile.online_status == 'online' or not profile.online_status %}selected{% endif %}>🟢 Online</option>
+              <option value="offline" {% if profile.online_status == 'offline' %}selected{% endif %}>⚪ Offline</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="online_status_visibility" style="font-size: 0.82rem; margin-bottom: 0.25rem;">Share Online Status:</label>
+            <select id="online_status_visibility" name="online_status_visibility" class="form-control" style="font-weight: 500;">
+              <option value="obscure" {% if profile.online_status_visibility == 'obscure' or profile.online_status_visibility == 'private' or not profile.online_status_visibility %}selected{% endif %}>❓ Obscure (Show as Unknown to Others)</option>
+              <option value="share" {% if profile.online_status_visibility == 'share' or profile.online_status_visibility == 'public' %}selected{% endif %}>🌐 Share Status (Show Online/Offline)</option>
+              <option value="friends" {% if profile.online_status_visibility == 'friends' %}selected{% endif %}>👥 Share With Friends Only</option>
+            </select>
+          </div>
+        </div>
+
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.5rem;">
+          When obscured, your status displays as <strong>Unknown</strong> to other users across Antisocial.
+        </span>
+      </div>
+
+      <!-- In-App Toast Notifications Settings -->
+      <div class="form-group" style="padding: 1.25rem; background: var(--input-bg); border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+          <label style="font-weight: 700; color: var(--primary-red); font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+            🔔 In-App Toast Notifications
+          </label>
+        </div>
+
+        <span style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 1rem;">
+          Configure live toast notification alerts for new private messages, comments, and posts.
+        </span>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+          <div>
+            <label for="notify_messages" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              📩 New Direct Messages:
+            </label>
+            <select id="notify_messages" name="notify_messages" class="form-control" style="font-weight: 500;">
+              <option value="true">🟢 Enabled</option>
+              <option value="false">🚫 Disabled</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="notify_comments" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              💬 New Comments on My Posts:
+            </label>
+            <select id="notify_comments" name="notify_comments" class="form-control" style="font-weight: 500;">
+              <option value="true">🟢 Enabled</option>
+              <option value="false">🚫 Disabled</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="notification_mode" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              ⚙️ Delivery Mode:
+            </label>
+            <select id="notification_mode" name="notification_mode" class="form-control" style="font-weight: 500;">
+              <option value="constant">⚡ Constant (Individual notifications per item)</option>
+              <option value="limited">📦 Limited (Group into summary notifications)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="obscure_notification_content" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              🔒 Notification Content Privacy:
+            </label>
+            <select id="obscure_notification_content" name="obscure_notification_content" class="form-control" style="font-weight: 500;">
+              <option value="false">👁️ Show Preview (Display text snippet)</option>
+              <option value="true">🔒 Obscure Content (Hide text content)</option>
+            </select>
+          </div>
+        </div>
+
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.75rem; line-height: 1.4;">
+          <strong>Constant Mode:</strong> Continuously sends an individual browser notification for each new message or comment as it arrives.<br>
+          <strong>Limited Mode:</strong> Collects multiple notifications and combines them into a generic message ("You have N new notifications from Antisocial").<br>
+          <strong>Obscured Content:</strong> Conceals message or comment text snippet in individual notifications ("New message received (content hidden for privacy)").
+        </span>
+      </div>
+
+      <!-- Email Notifications Settings (Batch Digest) -->
+      <div style="padding: 1rem; background: var(--input-bg); border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 1rem;">
+        <label style="font-weight: 700; color: var(--primary-red); font-size: 0.95rem; margin-bottom: 0.35rem; display: block;">
+          📧 Email Notifications (Batch Digest)
+        </label>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+          <div>
+            <label for="email_notify_messages" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              💬 Direct Messages Email Digest:
+            </label>
+            <select id="email_notify_messages" name="email_notify_messages" class="form-control" style="font-weight: 500;">
+              <option value="true">🟢 Enabled</option>
+              <option value="false">🚫 Disabled</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="email_notify_comments" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              💬 Post Comments Email Digest:
+            </label>
+            <select id="email_notify_comments" name="email_notify_comments" class="form-control" style="font-weight: 500;">
+              <option value="true">🟢 Enabled</option>
+              <option value="false">🚫 Disabled</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="email_notify_posts" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              📌 Followed Friends' Posts Email Digest:
+            </label>
+            <select id="email_notify_posts" name="email_notify_posts" class="form-control" style="font-weight: 500;">
+              <option value="true">🟢 Enabled</option>
+              <option value="false">🚫 Disabled</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="email_notification_frequency" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              ⏱️ Digest Frequency:
+            </label>
+            <select id="email_notification_frequency" name="email_notification_frequency" class="form-control" style="font-weight: 500;">
+              <option value="instant">⚡ Real-Time / Immediate Digest</option>
+              <option value="30min">📦 Every 30 Minutes Batch Digest</option>
+              <option value="hourly">📦 Hourly Batch Digest</option>
+              <option value="daily">📅 Daily Batch Digest</option>
+              <option value="never">🚫 Never Send Email Digests</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="email_obscure_notification_content" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+              🔒 Email Content Privacy:
+            </label>
+            <select id="email_obscure_notification_content" name="email_obscure_notification_content" class="form-control" style="font-weight: 500;">
+              <option value="false">👁️ Show Message/Comment/Post Content</option>
+              <option value="true">🔒 Obscure Content (Privacy Mode)</option>
+            </select>
+          </div>
+        </div>
+
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.75rem; line-height: 1.4;">
+          Email notifications are sent out as batch digests only to keep your inbox clean and uncluttered.
+        </span>
+      <!-- Timezone & Regional Display Settings -->
+      <div style="padding: 1rem; background: var(--input-bg); border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 1rem;">
+        <label style="font-weight: 700; color: var(--primary-red); font-size: 0.95rem; margin-bottom: 0.35rem; display: block;">
+          🌐 Timezone & Regional Display
+        </label>
+        
+        <div style="margin-top: 0.5rem;">
+          <label for="timezone" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">
+            ⏱️ Preferred Display Timezone:
+          </label>
+          <select id="timezone" name="timezone" class="form-control" style="font-weight: 500;">
+            <option value="auto">🌐 Auto / Browser Local Timezone</option>
+            <option value="UTC">🌍 UTC (Coordinated Universal Time)</option>
+            <option value="America/New_York">🗽 US Eastern Time (New York, Miami)</option>
+            <option value="America/Chicago">🏙️ US Central Time (Chicago, Dallas)</option>
+            <option value="America/Denver">🏔️ US Mountain Time (Denver, Phoenix)</option>
+            <option value="America/Los_Angeles">🌉 US Pacific Time (Los Angeles, Seattle)</option>
+            <option value="America/Anchorage">❄️ Alaska Time (Anchorage)</option>
+            <option value="Pacific/Honolulu">🌺 Hawaii Time (Honolulu)</option>
+            <option value="America/Sao_Paulo">🇧🇷 South America (São Paulo)</option>
+            <option value="Europe/London">🇬🇧 Western Europe (London, Dublin)</option>
+            <option value="Europe/Paris">🇫🇷 Central Europe (Paris, Berlin, Rome)</option>
+            <option value="Europe/Moscow">🇷🇺 Eastern Europe (Moscow, Istanbul)</option>
+            <option value="Asia/Dubai">🇦🇪 Gulf Standard Time (Dubai)</option>
+            <option value="Asia/Kolkata">🇮🇳 India Standard Time (Kolkata, Mumbai)</option>
+            <option value="Asia/Bangkok">🇹🇭 Indochina Time (Bangkok, Jakarta)</option>
+            <option value="Asia/Shanghai">🇨🇳 China Standard Time (Beijing, Shanghai)</option>
+            <option value="Asia/Tokyo">🇯🇵 Japan Standard Time (Tokyo)</option>
+            <option value="Australia/Sydney">🇦🇺 Australian Eastern Time (Sydney)</option>
+            <option value="Pacific/Auckland">🇳🇿 New Zealand Standard Time (Auckland)</option>
+          </select>
+        </div>
+
+        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.75rem; line-height: 1.4;">
+          All post dates, comment timestamps, and message timestamps on Antisocial will be displayed in your preferred timezone.
+        </span>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Save Privacy & Profile Settings</button>
+    </form>
+
+  </div>
+
+  <!-- Change Password Card -->
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 1rem;">🔑 Change Password</h3>
+    <form id="change-password-form">
+      <div class="form-group">
+        <label for="current_password">Current Password</label>
+        <input type="password" id="current_password" name="current_password" class="form-control" required placeholder="Enter current password">
+      </div>
+
+      <div class="form-group">
+        <label for="new_password">New Password</label>
+        <input type="password" id="new_password" name="new_password" class="form-control" required placeholder="Enter new password (min. 6 chars)">
+      </div>
+
+      <div class="form-group">
+        <label for="confirm_password">Confirm New Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" class="form-control" required placeholder="Re-enter new password">
+      </div>
+
+      <button type="submit" class="btn btn-secondary">Update Password</button>
+    </form>
+  <!-- Two-Factor Authentication Card -->
+  <div class="card">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <h3 style="color: var(--primary-red); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+        🔐 Two-Factor Authentication (2FA)
+      </h3>
+      <span id="2fa-status-badge" class="badge-visibility" style="background: rgba(100, 116, 139, 0.2); color: var(--text-muted);">Disabled</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+      Protect your account with a time-based 6-digit verification code from an authenticator app (Google Authenticator, Aegis, 1Password, Authy).
+    </p>
+
+    <div id="2fa-setup-area">
+      <button id="btn-start-2fa" onclick="start2FASetup()" class="btn btn-secondary btn-sm">Setup Authenticator App</button>
+    </div>
+
+    <!-- 2FA Setup Modal/Box -->
+    <div id="2fa-modal-box" style="display: none; background: var(--input-bg); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 1rem;">
+      <h4 style="margin-bottom: 0.5rem; color: var(--text-main);">📷 Scan QR Code with Authenticator App</h4>
+      <p style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 0.75rem;">Scan this QR code using Google Authenticator, Aegis, 1Password, or Authy on your phone:</p>
+
+      <div style="display: flex; justify-content: center; margin: 1rem 0;">
+        <div id="2fa-qrcode-container" style="background: #ffffff; padding: 12px; border-radius: 8px; display: inline-block;"></div>
+      </div>
+      
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem;">Or enter key manually into your app:</p>
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+        <input type="text" id="2fa-secret-key" class="form-control" readonly style="font-family: monospace; font-weight: 700; letter-spacing: 1px;">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('2fa-secret-key').value); alert('Secret key copied!');" class="btn btn-secondary btn-sm">Copy</button>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0.75rem;">
+        <label for="2fa-verification-code" style="font-size: 0.85rem; font-weight: 600;">Enter 6-Digit Authenticator Code:</label>
+        <input type="text" id="2fa-verification-code" class="form-control" placeholder="123456" maxlength="6" style="max-width: 200px; font-size: 1.1rem; text-align: center; letter-spacing: 2px;">
+      </div>
+      
+      <div style="display: flex; gap: 0.5rem;">
+        <button onclick="confirmEnable2FA()" class="btn btn-primary btn-sm">Enable 2FA</button>
+        <button onclick="cancel2FASetup()" class="btn btn-secondary btn-sm">Cancel</button>
+      </div>
+    </div>
+
+    <!-- 2FA Active Box & Backup Codes display -->
+    <div id="2fa-active-box" style="display: none; margin-top: 1rem;">
+      <div id="backup-codes-display" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+        <strong style="color: #10b981; display: block; margin-bottom: 0.35rem;">⚠️ Save Emergency Recovery Backup Codes:</strong>
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Save these single-use recovery codes in a safe place. You can use them to log in if you lose your phone:</span>
+        <div id="backup-codes-list" style="font-family: monospace; font-size: 0.9rem; font-weight: 700; display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem;"></div>
+      </div>
+      <button onclick="disable2FA()" class="btn btn-secondary btn-sm" style="color: #ef4444;">Disable 2FA</button>
+    </div>
+  </div>
+
+  <!-- Active Sessions & Devices Card -->
+  <div class="card">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <h3 style="color: var(--primary-red); margin: 0;">📱 Active Logged-in Devices</h3>
+      <button onclick="revokeAllOtherSessions()" class="btn btn-secondary btn-sm" style="color: #ef4444;">Log Out Other Devices</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+      Devices currently logged into your Antisocial account. You can revoke any unrecognized session immediately.
+    </p>
+
+    <div id="active-sessions-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <span style="font-size: 0.85rem; color: var(--text-muted);">Loading active sessions...</span>
+    </div>
+  </div>
+
+  <!-- Cookie & Privacy Preferences Card -->
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">🍪 Cookie & Privacy Preferences</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+      Manage your cookie preferences. Essential cookies (session tokens and CSRF protection) are required for platform security and operation.
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+        <div>
+          <strong style="font-size: 0.9rem; color: var(--text-main);">Essential Cookies</strong>
+          <span style="display: block; font-size: 0.78rem; color: var(--text-muted);">Required for authentication, session management, and site security.</span>
+        </div>
+        <span class="badge badge-success" style="font-size: 0.75rem; padding: 0.25rem 0.6rem;">Always Active</span>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: var(--input-bg); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+        <div>
+          <strong style="font-size: 0.9rem; color: var(--text-main);">Preference & UI Cookies</strong>
+          <span style="display: block; font-size: 0.78rem; color: var(--text-muted);">Remembers layout states, theme toggles, and notification dismissals.</span>
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="rejectNonEssentialCookies()">Opt Out</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="acceptAllCookies()" style="margin-left: 0.35rem;">Accept All</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Immediate Account Deletion Card -->
+  <div class="card" style="border-color: rgba(239, 68, 68, 0.3); background: var(--primary-red-light);">
+    <h3 style="color: #dc2626; margin-bottom: 0.5rem;">⚠️ Account Deletion</h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
+      Deleting your account is permanent. All your posts, uploaded media, profile data, comments, likes, and friendships will be <strong>immediately deleted</strong>.
+    </p>
+
+    <button onclick="confirmAccountDeletion()" class="btn btn-danger">Delete My Account Permanently</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const currentUsername = "{{ current_user.username }}";
+document.addEventListener('DOMContentLoaded', () => {
+  loadCurrentProfileSettings();
+  checkNotificationPermissionUI();
+
+  const form = document.getElementById('profile-settings-form');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      display_name: document.getElementById('display_name').value,
+      first_name: document.getElementById('first_name').value,
+      first_name_visibility: document.getElementById('first_name_visibility').value,
+      last_name: document.getElementById('last_name').value,
+      last_name_visibility: document.getElementById('last_name_visibility').value,
+      bio: document.getElementById('bio').value,
+      bio_visibility: document.getElementById('bio_visibility').value,
+      location: document.getElementById('location').value,
+      location_visibility: document.getElementById('location_visibility').value,
+      birthdate: document.getElementById('birthdate').value,
+      birthdate_visibility: document.getElementById('birthdate_visibility').value,
+      phone: document.getElementById('phone').value,
+      phone_visibility: document.getElementById('phone_visibility').value,
+      email: document.getElementById('email').value,
+      email_visibility: document.getElementById('email_visibility').value,
+      dm_privacy: document.getElementById('dm_privacy').value,
+      online_status: document.getElementById('online_status').value,
+      online_status_visibility: document.getElementById('online_status_visibility').value,
+      notify_messages: document.getElementById('notify_messages').value === "true",
+      notify_comments: document.getElementById('notify_comments').value === "true",
+      notification_mode: document.getElementById('notification_mode').value,
+      obscure_notification_content: document.getElementById('obscure_notification_content').value === "true",
+      email_notify_messages: document.getElementById('email_notify_messages').value === "true",
+      email_notify_comments: document.getElementById('email_notify_comments').value === "true",
+      email_notify_posts: document.getElementById('email_notify_posts').value === "true",
+      email_notification_frequency: document.getElementById('email_notification_frequency').value,
+      email_obscure_notification_content: document.getElementById('email_obscure_notification_content').value === "true",
+      timezone: document.getElementById('timezone').value,
+    };
+
+    try {
+      const res = await fetch('/api/users/profile/me', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        if (payload.timezone) {
+          localStorage.setItem('user_timezone', payload.timezone);
+        }
+        showCustomAlert("Privacy & profile settings updated successfully!", "Success", () => {
+          window.location.reload();
+        });
+      } else {
+
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed to update profile settings.", "Error");
+      }
+    } catch (err) {
+      showCustomAlert("Error: " + err.message, "Error");
+    }
+  });
+
+  const avatarForm = document.getElementById('avatar-upload-form');
+  avatarForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(avatarForm);
+
+    try {
+      const res = await fetch('/api/users/profile/avatar', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const responseText = await res.text();
+      let data = {};
+      try {
+        if (responseText) data = JSON.parse(responseText);
+      } catch (jsonErr) {}
+
+      if (res.ok) {
+        showCustomAlert("Avatar uploaded successfully!", "Success", () => {
+          window.location.reload();
+        });
+      } else {
+        const errorDetail = data.detail || data.message || (responseText && !responseText.startsWith("<") ? responseText : "Avatar upload failed. Please try a different image.");
+        showCustomAlert(errorDetail, "Error");
+      }
+    } catch (err) {
+      showCustomAlert("Error uploading avatar: " + err.message, "Error");
+    }
+  });
+
+  const pwdForm = document.getElementById('change-password-form');
+  pwdForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const current_password = document.getElementById('current_password').value;
+    const new_password = document.getElementById('new_password').value;
+    const confirm_password = document.getElementById('confirm_password').value;
+
+    if (new_password !== confirm_password) {
+      showCustomAlert("New password and confirm password do not match.", "Validation Error");
+      return;
+    }
+
+    if (new_password.length < 6) {
+      showCustomAlert("New password must be at least 6 characters long.", "Validation Error");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ current_password, new_password })
+      });
+
+      if (res.ok) {
+        showCustomAlert("Password updated successfully!", "Success");
+        pwdForm.reset();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Password change failed.", "Error");
+      }
+    } catch (err) {
+      showCustomAlert("Error updating password: " + err.message, "Error");
+    }
+  });
+});
+
+
+async function loadCurrentProfileSettings() {
+  try {
+    const res = await fetch(`/api/users/profile/${currentUsername}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const p = data.profile;
+      if (p) {
+        if (p.avatar_url) {
+          document.getElementById('settings-avatar-preview').innerHTML = `<img src="${p.avatar_url}" style="width:100%; height:100%; object-fit:cover;" />`;
+        }
+        document.getElementById('display_name').value = p.display_name || '';
+        document.getElementById('first_name').value = p.first_name || '';
+        document.getElementById('last_name').value = p.last_name || '';
+        document.getElementById('bio').value = p.bio || '';
+        document.getElementById('location').value = p.location || '';
+        document.getElementById('birthdate').value = p.birthdate || '';
+        document.getElementById('phone').value = p.phone || '';
+        if (p.email) document.getElementById('email').value = p.email;
+
+        if (p.first_name_visibility) document.getElementById('first_name_visibility').value = p.first_name_visibility;
+        if (p.last_name_visibility) document.getElementById('last_name_visibility').value = p.last_name_visibility;
+        if (p.bio_visibility) document.getElementById('bio_visibility').value = p.bio_visibility;
+        if (p.location_visibility) document.getElementById('location_visibility').value = p.location_visibility;
+        if (p.birthdate_visibility) document.getElementById('birthdate_visibility').value = p.birthdate_visibility;
+        if (p.phone_visibility) document.getElementById('phone_visibility').value = p.phone_visibility;
+        if (p.email_visibility) document.getElementById('email_visibility').value = p.email_visibility;
+        if (p.dm_privacy) document.getElementById('dm_privacy').value = p.dm_privacy;
+        if (p.online_status) document.getElementById('online_status').value = p.online_status;
+        if (p.online_status_visibility) document.getElementById('online_status_visibility').value = p.online_status_visibility;
+        if (p.notify_messages !== undefined && p.notify_messages !== null) {
+          document.getElementById('notify_messages').value = p.notify_messages ? "true" : "false";
+        }
+        if (p.notify_comments !== undefined && p.notify_comments !== null) {
+          document.getElementById('notify_comments').value = p.notify_comments ? "true" : "false";
+        }
+        if (p.notification_mode) {
+          document.getElementById('notification_mode').value = p.notification_mode;
+        }
+        if (p.obscure_notification_content !== undefined && p.obscure_notification_content !== null) {
+          document.getElementById('obscure_notification_content').value = p.obscure_notification_content ? "true" : "false";
+        }
+        if (p.email_notify_messages !== undefined && p.email_notify_messages !== null) {
+          document.getElementById('email_notify_messages').value = p.email_notify_messages ? "true" : "false";
+        }
+        if (p.email_notify_comments !== undefined && p.email_notify_comments !== null) {
+          document.getElementById('email_notify_comments').value = p.email_notify_comments ? "true" : "false";
+        }
+        if (p.email_notify_posts !== undefined && p.email_notify_posts !== null) {
+          document.getElementById('email_notify_posts').value = p.email_notify_posts ? "true" : "false";
+        }
+        if (p.email_notification_frequency) {
+          document.getElementById('email_notification_frequency').value = p.email_notification_frequency;
+        }
+        if (p.email_obscure_notification_content !== undefined && p.email_obscure_notification_content !== null) {
+          document.getElementById('email_obscure_notification_content').value = p.email_obscure_notification_content ? "true" : "false";
+        }
+        if (p.timezone) {
+          document.getElementById('timezone').value = p.timezone;
+          localStorage.setItem('user_timezone', p.timezone);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed loading settings", err);
+  }
+}
+
+function checkNotificationPermissionUI() {
+  const badge = document.getElementById('permission-status-badge');
+  const btn = document.getElementById('request-permission-btn');
+  if (!badge) return;
+
+  if (typeof Notification === 'undefined') {
+    badge.innerText = '⚠️ Unsupported by Browser';
+    badge.style.background = 'rgba(239, 68, 68, 0.15)';
+    badge.style.color = '#ef4444';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    badge.innerText = '🟢 Browser Permission Granted';
+    badge.style.background = 'rgba(16, 185, 129, 0.15)';
+    badge.style.color = '#10b981';
+    if (btn) btn.style.display = 'none';
+  } else if (Notification.permission === 'denied') {
+    badge.innerText = '🔴 Browser Permission Denied';
+    badge.style.background = 'rgba(239, 68, 68, 0.15)';
+    badge.style.color = '#ef4444';
+    if (btn) {
+      btn.innerText = 'Blocked in Browser Settings';
+      btn.disabled = true;
+      btn.style.display = 'inline-block';
+    }
+  } else {
+    badge.innerText = '🟡 Permission Required';
+    badge.style.background = 'rgba(245, 158, 11, 0.15)';
+    badge.style.color = '#f59e0b';
+    if (btn) {
+      btn.innerText = 'Enable Notifications';
+      btn.disabled = false;
+      btn.style.display = 'inline-block';
+    }
+  }
+}
+
+async function requestBrowserNotificationPermission() {
+  if (typeof Notification === 'undefined') {
+    showCustomAlert("Browser notifications are not supported by your current browser.", "Unsupported");
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  checkNotificationPermissionUI();
+  if (perm === 'granted') {
+    showCustomAlert("Browser notification permission granted! You will now receive notifications based on your settings.", "Notifications Enabled");
+  } else if (perm === 'denied') {
+    showCustomAlert("Browser notification permission was denied. You can allow permissions in your browser's site settings.", "Permission Denied");
+  }
+}
+
+
+function confirmAccountDeletion() {
+  showCustomPrompt(
+    "Please enter your password to authorize permanent account deletion:",
+    "Your current password",
+    "🔒 Password Required",
+    (enteredPassword) => {
+      if (!enteredPassword) {
+        showCustomAlert("Account deletion cancelled. Password was not provided.", "Cancelled");
+        return;
+      }
+
+      showCustomConfirm(
+        `Are you sure you want to PERMANENTLY delete your account (@${currentUsername})?\n\nAll your posts, uploaded media, profile data, comments, likes, and friendships will be deleted immediately. This action CANNOT be undone.`,
+        "⚠️ Confirm Permanent Deletion",
+        async () => {
+          try {
+            const res = await fetch('/api/users/me', {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ password: enteredPassword })
+            });
+
+            if (res.ok) {
+              showCustomAlert("Your account and all associated data have been permanently deleted.", "Account Deleted", () => {
+                window.location.href = '/logout';
+              });
+            } else {
+              const err = await res.json();
+              showCustomAlert(err.detail || "Account deletion failed.", "Error");
+            }
+          } catch (err) {
+            showCustomAlert("Error executing deletion: " + err.message, "Error");
+          }
+        },
+        "Delete My Account Permanently",
+        "btn-danger"
+      );
+    },
+    "password"
+  );
+}
+
+async function loadUserSecurityState() {
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const u = await res.json();
+      const badge = document.getElementById('2fa-status-badge');
+      const setupArea = document.getElementById('2fa-setup-area');
+      const activeBox = document.getElementById('2fa-active-box');
+
+      if (u.is_totp_enabled) {
+        if (badge) {
+          badge.innerText = '🟢 Enabled';
+          badge.style.background = 'rgba(16, 185, 129, 0.15)';
+          badge.style.color = '#10b981';
+        }
+        if (setupArea) setupArea.style.display = 'none';
+        if (activeBox) activeBox.style.display = 'block';
+      } else {
+        if (badge) {
+          badge.innerText = 'Disabled';
+          badge.style.background = 'rgba(100, 116, 139, 0.2)';
+          badge.style.color = 'var(--text-muted)';
+        }
+        if (setupArea) setupArea.style.display = 'block';
+        if (activeBox) activeBox.style.display = 'none';
+      }
+    }
+  } catch (err) {
+    console.error("Failed loading security state", err);
+  }
+}
+
+async function start2FASetup() {
+  try {
+    const res = await fetch('/api/auth/2fa/setup', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('2fa-secret-key').value = data.secret;
+      document.getElementById('2fa-modal-box').style.display = 'block';
+
+      const qrContainer = document.getElementById('2fa-qrcode-container');
+      if (qrContainer) {
+        qrContainer.innerHTML = '';
+        if (typeof QRCode !== 'undefined' && data.otpauth_url) {
+          new QRCode(qrContainer, {
+            text: data.otpauth_url,
+            width: 180,
+            height: 180,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.M
+          });
+        }
+      }
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to initiate 2FA setup.", "Error");
+    }
+  } catch (e) {
+    showCustomAlert("Error starting 2FA setup: " + e.message, "Error");
+  }
+}
+
+function cancel2FASetup() {
+  document.getElementById('2fa-modal-box').style.display = 'none';
+  document.getElementById('2fa-verification-code').value = '';
+}
+
+async function confirmEnable2FA() {
+  const codeInput = document.getElementById('2fa-verification-code');
+  const code = codeInput && codeInput.value ? codeInput.value.trim() : '';
+  if (!code || code.length < 6) {
+    showCustomAlert("Please enter a valid 6-digit verification code from your authenticator app.", "Invalid Code");
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/2fa/enable', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code: code })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('2fa-modal-box').style.display = 'none';
+      
+      if (data.backup_codes && data.backup_codes.length > 0) {
+        const listEl = document.getElementById('backup-codes-list');
+        listEl.innerHTML = data.backup_codes.map(c => `<div>${c}</div>`).join('');
+        document.getElementById('backup-codes-display').style.display = 'block';
+      }
+
+      showCustomAlert("Two-Factor Authentication is now enabled on your account!", "2FA Activated");
+      loadUserSecurityState();
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Verification failed.", "Error");
+    }
+  } catch (e) {
+    showCustomAlert("Error enabling 2FA: " + e.message, "Error");
+  }
+}
+
+async function disable2FA() {
+  showCustomPrompt(
+    "Enter a 6-digit 2FA code or your current password to disable 2FA:",
+    "2FA Code or Password",
+    "🔒 Disable 2FA",
+    async (code) => {
+      if (!code) return;
+      try {
+        const res = await fetch('/api/auth/2fa/disable', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code: code })
+        });
+
+        if (res.ok) {
+          showCustomAlert("Two-factor authentication has been disabled.", "2FA Disabled");
+          document.getElementById('backup-codes-display').style.display = 'none';
+          loadUserSecurityState();
+        } else {
+          const err = await res.json();
+          showCustomAlert(err.detail || "Failed to disable 2FA.", "Error");
+        }
+      } catch (e) {
+        showCustomAlert("Error disabling 2FA: " + e.message, "Error");
+      }
+    }
+  );
+}
+
+async function loadActiveSessions() {
+  const container = document.getElementById('active-sessions-list');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/auth/sessions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const sessions = await res.json();
+      if (!sessions || sessions.length === 0) {
+        container.innerHTML = '<span style="font-size: 0.85rem; color: var(--text-muted);">No active sessions found.</span>';
+        return;
+      }
+
+      container.innerHTML = sessions.map((s, idx) => `
+        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--input-bg); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <strong style="color: var(--text-main); font-size: 0.9rem;">${idx === 0 ? '🟢 Current Device' : '💻 Remote Device'}</strong>
+            <span style="display: block; font-size: 0.78rem; color: var(--text-muted);">${s.ip_address} &bull; ${s.user_agent}</span>
+            <span style="display: block; font-size: 0.73rem; color: var(--text-muted);">Last active: ${new Date(s.last_active_at).toLocaleString()}</span>
+          </div>
+          ${idx !== 0 ? `<button onclick="revokeSession(${s.id})" class="btn btn-secondary btn-sm" style="color: #ef4444; font-size: 0.78rem;">Revoke</button>` : '<span style="font-size: 0.75rem; color: #10b981; font-weight: 600;">Active Now</span>'}
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error("Failed to load active sessions", e);
+  }
+}
+
+async function revokeSession(id) {
+  try {
+    const res = await fetch(`/api/auth/sessions/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadActiveSessions();
+    }
+  } catch (e) {
+    console.error("Failed revoking session", e);
+  }
+}
+
+async function revokeAllOtherSessions() {
+  try {
+    const res = await fetch('/api/auth/sessions/revoke-others', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      showCustomAlert("All other active sessions have been logged out.", "Sessions Revoked");
+      loadActiveSessions();
+    }
+  } catch (e) {
+    console.error("Failed revoking sessions", e);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadUserSecurityState();
+  loadActiveSessions();
+});
+
+</script>
+{% endblock %}

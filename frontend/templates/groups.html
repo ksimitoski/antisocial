@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Groups - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="color: var(--primary-red); margin-bottom: 1rem;">Create a New Group</h2>
+    <form id="create-group-form" style="display: flex; flex-direction: column; gap: 1rem;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="group-name">Group Name</label>
+        <input type="text" id="group-name" class="form-control" required placeholder="e.g. Photography Enthusiasts">
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="group-desc">Description</label>
+        <textarea id="group-desc" class="form-control" placeholder="What is this group about?"></textarea>
+      </div>
+      <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+          <input type="checkbox" id="group-private" />
+          🔒 Private Group (Approval required to join)
+        </label>
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Create Group</button>
+      </div>
+    </form>
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+    <h2 style="margin: 0;">Community Groups</h2>
+    <div style="display: flex; gap: 0.5rem; flex: 1; max-width: 400px;">
+      <input type="text" id="search-groups-input" class="form-control" placeholder="🔍 Search groups by name..." oninput="onGroupSearchInput()" style="padding: 0.4rem 0.75rem; font-size: 0.9rem;" />
+      <button type="button" class="btn btn-secondary btn-sm" onclick="clearGroupSearch()">Clear</button>
+    </div>
+  </div>
+
+  <div id="groups-list-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
+    <div style="color: var(--text-muted);">Loading groups...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = "{{ session.get('access_token') }}";
+const currentUserId = parseInt("{{ current_user.id }}");
+
+let skip = 0;
+const limit = 5;
+let isLoading = false;
+let hasMore = true;
+let groupSearchQuery = '';
+let searchTimeout = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  resetAndLoadGroups();
+
+  document.getElementById('create-group-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('group-name').value;
+    const description = document.getElementById('group-desc').value;
+    const is_private = document.getElementById('group-private').checked;
+
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, description, is_private })
+      });
+
+      if (res.ok) {
+        document.getElementById('create-group-form').reset();
+        resetAndLoadGroups();
+      } else {
+        const err = await res.json();
+        showCustomAlert(err.detail || "Failed creating group", "Error");
+      }
+    } catch (err) {
+      showCustomAlert("Failed creating group: " + err.message, "Network Error");
+    }
+  });
+
+  window.addEventListener('scroll', handleScroll);
+});
+
+function handleScroll() {
+  if (isLoading || !hasMore) return;
+  if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 500)) {
+    loadGroups();
+  }
+}
+
+function onGroupSearchInput() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    groupSearchQuery = document.getElementById('search-groups-input').value.trim();
+    resetAndLoadGroups();
+  }, 300);
+}
+
+function clearGroupSearch() {
+  document.getElementById('search-groups-input').value = '';
+  groupSearchQuery = '';
+  resetAndLoadGroups();
+}
+
+function resetAndLoadGroups() {
+  skip = 0;
+  hasMore = true;
+  isLoading = false;
+  const container = document.getElementById('groups-list-container');
+  container.innerHTML = '';
+  loadGroups();
+}
+
+async function loadGroups() {
+  if (isLoading || !hasMore) return;
+  isLoading = true;
+
+  const container = document.getElementById('groups-list-container');
+  let loadingIndicator = document.getElementById('groups-loading-indicator');
+  if (!loadingIndicator) {
+    loadingIndicator = document.createElement('div');
+    loadingIndicator.id = 'groups-loading-indicator';
+    loadingIndicator.style.cssText = 'color: var(--text-muted); text-align: center; padding: 1rem;';
+    loadingIndicator.innerText = skip === 0 ? 'Loading groups...' : 'Loading more groups...';
+    container.appendChild(loadingIndicator);
+  }
+
+  try {
+    let url = `/api/groups?skip=${skip}&limit=${limit}`;
+    if (groupSearchQuery) {
+      url += `&search=${encodeURIComponent(groupSearchQuery)}`;
+    }
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (loadingIndicator && loadingIndicator.parentNode) {
+      loadingIndicator.parentNode.removeChild(loadingIndicator);
+    }
+
+    if (!res.ok) {
+      isLoading = false;
+      return;
+    }
+
+    const groups = await res.json();
+
+    if (skip === 0 && groups.length === 0) {
+      container.innerHTML = `<div class="card" style="text-align:center; color: var(--text-muted);">${groupSearchQuery ? 'No groups matching your search.' : 'No groups created yet. Be the first to create one!'}</div>`;
+      hasMore = false;
+      isLoading = false;
+      return;
+    }
+
+    if (groups.length < limit) {
+      hasMore = false;
+    }
+
+    groups.forEach(g => {
+      let actionBtnHtml = '';
+      if (g.is_banned) {
+        actionBtnHtml = `<span class="badge-visibility" style="background: rgba(239,68,68,0.15); color:#ef4444;">🚫 Banned</span>`;
+      } else if (g.is_member) {
+        actionBtnHtml = `<button onclick="leaveGroup(${g.id})" class="btn btn-secondary btn-sm">Leave Group</button>`;
+      } else if (g.has_requested_join) {
+        actionBtnHtml = `<button class="btn btn-secondary btn-sm" disabled>⏳ Request Pending</button>`;
+      } else if (g.is_private) {
+        actionBtnHtml = `<button onclick="joinGroup(${g.id})" class="btn btn-primary btn-sm">📩 Request to Join</button>`;
+      } else {
+        actionBtnHtml = `<button onclick="joinGroup(${g.id})" class="btn btn-primary btn-sm">Join Group</button>`;
+      }
+
+      const privacyBadges = g.is_private ? '<span class="badge-icon">🔒</span><span class="badge-text"> Private</span>' : '<span class="badge-icon">🌐</span><span class="badge-text"> Public</span>';
+
+      const cardHtml = `
+        <div class="card" id="group-card-${g.id}" style="margin-bottom: 0;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div style="flex: 1; min-width: 240px;">
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <a href="/groups/${g.id}" style="text-decoration: none;">
+                  <h3 style="color: var(--primary-red); margin-bottom: 0.2rem; display: inline-block;">${escapeHtml(g.name)}</h3>
+                </a>
+                <span style="font-size: 0.75rem; color: var(--text-muted); padding: 0.15rem 0.4rem; background: rgba(0,0,0,0.05); border-radius: var(--radius-sm);">
+                  ${privacyBadges}
+                </span>
+              </div>
+              <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0.25rem 0 0 0; word-break: break-word;">${escapeHtml(g.description || 'No description provided.')}</p>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem;">
+                Created by <strong>@${escapeHtml(g.creator_username)}</strong> &bull; ${g.member_count} Members
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; margin-left: auto;">
+              ${actionBtnHtml}
+              <a href="/groups/${g.id}" class="btn btn-secondary btn-sm" style="text-decoration: none; white-space: nowrap;">
+                View Group Posts 💬
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.insertAdjacentHTML('beforeend', cardHtml);
+    });
+
+    skip += groups.length;
+  } catch (err) {
+    console.error("Error loading groups", err);
+  } finally {
+    isLoading = false;
+  }
+}
+
+async function joinGroup(groupId) {
+  try {
+    const res = await fetch(`/api/groups/${groupId}/join`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.status === 'requested') {
+        showCustomAlert("Join request submitted to group administrators for approval.", "Request Sent");
+      }
+      resetAndLoadGroups();
+    } else {
+      showCustomAlert(data.detail || "Failed to join group", "Group Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error joining group: " + err.message, "Network Error");
+  }
+}
+
+async function leaveGroup(groupId) {
+  showCustomConfirm("Are you sure you want to leave this group?", "Leave Group", async () => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/leave`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        resetAndLoadGroups();
+      } else {
+        showCustomAlert(data.detail || "Failed to leave group", "Group Error");
+      }
+    } catch (err) {
+      showCustomAlert("Error leaving group: " + err.message, "Network Error");
+    }
+  });
+}
+</script>
+{% endblock %}

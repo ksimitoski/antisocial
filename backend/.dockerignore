@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Environment variables & secrets
+.env
+*.env
+
+# Python byte-code, cache, and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases and uploads
+*.db
+*.sqlite
+*.sqlite3
+data/
+uploads/
+
+# OS / Editor temporary files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and test artifacts
+*.log
+tests/

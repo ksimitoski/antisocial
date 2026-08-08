@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Antisocial{% endblock %}
+
+{% block content %}
+{% if site_settings and site_settings.page_text %}
+  <div id="main-index-notice" class="card dismissable-notice" style="background: rgba(220, 38, 38, 0.05); border-left: 4px solid var(--primary-red); margin-bottom: 1.5rem; position: relative; text-align: center; padding-right: 3rem;">
+    <button type="button" onclick="dismissNotice('main-index-notice')" class="banner-close-btn" aria-label="Dismiss notice">&times;</button>
+    <p style="font-size: 1.05rem; margin: 0; color: var(--text-main);">ℹ️ {{ site_settings.page_text }}</p>
+  </div>
+{% endif %}
+
+
+
+<div class="card" style="text-align: center; padding: 4rem 2rem; margin-top: 1rem;">
+
+  <h1 style="font-size: 3rem; margin-bottom: 1rem; color: var(--primary-red);">Privacy-First Social Media</h1>
+  <p style="font-size: 1.2rem; color: var(--text-muted); max-width: 650px; margin: 0 auto 2.5rem auto;">
+    Share messages, images, and videos on your terms. Granular visibility controls (Public, Private, Friends, Groups) put you in complete control.
+  </p>
+
+  {% if current_user %}
+  <div style="display: flex; gap: 1rem; justify-content: center;">
+    <a href="{{ url_for('feed') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.9rem 2rem;">Go to My Feed 📰</a>
+  </div>
+  {% else %}
+  <div style="display: flex; gap: 1rem; justify-content: center;">
+    <a href="{{ url_for('register') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.9rem 2rem;">Create Account</a>
+    <a href="{{ url_for('login') }}" class="btn btn-secondary" style="font-size: 1.1rem; padding: 0.9rem 2rem;">Log In</a>
+  </div>
+  {% endif %}
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2rem; margin-bottom: 2.5rem;">
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">🔒 Granular Privacy</h3>
+    <p style="color: var(--text-muted); font-size: 0.92rem;">
+      Choose who can see each field of your profile and every post you publish: Public, Friends Only, Groups, or Private.
+    </p>
+  </div>
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">🛡️ Admin Boundaries</h3>
+    <p style="color: var(--text-muted); font-size: 0.92rem;">
+      Administrators can manage user access and system safety, but are strictly prohibited from viewing unshared profile details or private content.
+    </p>
+  </div>
+  <div class="card">
+    <h3 style="color: var(--primary-red); margin-bottom: 0.5rem;">⚡ Instant Purge</h3>
+    <p style="color: var(--text-muted); font-size: 0.92rem;">
+      Delete your account anytime with immediate cascade deletion of all your posts, media files, comments, likes, and friendships.
+    </p>
+  </div>
+</div>
+
+{% if not current_user %}
+<!-- Public Feed Container (Accessible without login) -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <h2 style="color: var(--primary-red); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+    🌐 Public Feed
+  </h2>
+  <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+    Explore public posts shared by the Antisocial community. No account required to view!
+  </p>
+</div>
+
+<div id="public-feed-container">
+  <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading public posts...</div>
+</div>
+
+<script>
+  let publicSkip = 0;
+  const PUBLIC_LIMIT = 10;
+  let isPublicLoading = false;
+  let hasMorePublic = true;
+
+  function renderPublicPostCard(post) {
+    const initial = post.author_username ? post.author_username.charAt(0).toUpperCase() : 'U';
+    const rawAvatar = post.author_avatar 
+      ? `<img src="${post.author_avatar}" class="user-avatar" style="object-fit: cover;" />`
+      : `<div class="user-avatar">${initial}</div>`;
+    
+    const statusVal = (post.author_online_status || post.online_status || 'unknown').toLowerCase();
+    let statusDotClass = 'unknown';
+    if (statusVal === 'online') statusDotClass = 'online';
+    else if (statusVal === 'offline') statusDotClass = 'offline';
+
+    const avatarHtml = `
+      <div class="avatar-container">
+        ${rawAvatar}
+        <span class="status-indicator ${statusDotClass}" data-username="${post.author_username}" title="Status: ${statusVal}"></span>
+      </div>`;
+
+    const displayName = post.author_display_name || post.author_username;
+
+    let mediaHtml = '';
+    if (post.media_type === 'image' && post.media_url) {
+      mediaHtml = `<div class="post-media-container"><img src="${post.media_url}" /></div>`;
+    } else if (post.media_type === 'video' && post.media_url) {
+      mediaHtml = `<div class="post-media-container"><video controls src="${post.media_url}"></video></div>`;
+    }
+
+    const commentsHtml = (post.comments || []).map(c => {
+      const cName = c.author_display_name || c.author_username;
+      const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+      const cAvatarHtml = c.author_avatar 
+        ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+        : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+      const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+
+      return `
+        <div class="comment-item" id="comment-${c.id}">
+          <a href="/profile/${c.author_username}" class="comment-avatar-link">
+            ${cAvatarHtml}
+          </a>
+          <div class="comment-body">
+            <div class="comment-text-content">
+              <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+              <span class="comment-text">${escapeHtml(c.content)}</span>
+            </div>
+            <div class="comment-actions-meta">
+              ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="post-card" style="margin-bottom: 1.25rem;">
+        <div class="post-header">
+          <div class="post-author-info">
+            ${avatarHtml}
+            <div>
+              <a href="/profile/${post.author_username}" class="author-name">${escapeHtml(displayName)}</a>
+              <div class="post-meta">
+                @${escapeHtml(post.author_username)} &bull; ${formatDateTime(post.created_at)}
+              </div>
+            </div>
+          </div>
+          <span class="badge-visibility"><span class="badge-icon">🌐</span><span class="badge-text"> Public</span></span>
+        </div>
+
+        ${post.content ? `<div class="post-content">${escapeHtml(post.content)}</div>` : ''}
+        ${mediaHtml}
+
+        <div class="post-actions">
+          <span style="font-size: 0.88rem; color: var(--text-muted);">
+            ❤️ ${post.likes_count} Likes &bull; 💬 ${post.comments ? post.comments.length : 0} Comments
+          </span>
+        </div>
+
+        ${commentsHtml ? `
+          <div class="comments-section" style="margin-top: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+            <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function handlePublicScroll() {
+    if (isPublicLoading || !hasMorePublic) return;
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const threshold = document.documentElement.scrollHeight - 300;
+    if (scrollPosition >= threshold) {
+      loadPublicFeed();
+    }
+  }
+
+  async function loadPublicFeed() {
+    if (isPublicLoading || !hasMorePublic) return;
+    isPublicLoading = true;
+
+    const container = document.getElementById('public-feed-container');
+    if (!container) return;
+
+    let spinner = document.getElementById('public-feed-spinner');
+    if (!spinner) {
+      spinner = document.createElement('div');
+      spinner.id = 'public-feed-spinner';
+      spinner.style.textAlign = 'center';
+      spinner.style.padding = '1.5rem';
+      spinner.style.color = 'var(--text-muted)';
+      spinner.innerHTML = 'Loading public posts...';
+      container.appendChild(spinner);
+    }
+
+    try {
+      const res = await fetch(`/api/posts?skip=${publicSkip}&limit=${PUBLIC_LIMIT}`);
+
+      if (spinner && spinner.parentNode) {
+        spinner.parentNode.removeChild(spinner);
+      }
+
+      if (!res.ok) {
+        if (publicSkip === 0) {
+          container.innerHTML = `<div class="alert alert-danger">Unable to load public feed.</div>`;
+        }
+        isPublicLoading = false;
+        return;
+      }
+
+      const posts = await res.json();
+
+      if (publicSkip === 0 && posts.length === 0) {
+        container.innerHTML = `<div class="card" style="text-align: center; color: var(--text-muted); padding: 2rem;">No public posts available yet.</div>`;
+        hasMorePublic = false;
+        isPublicLoading = false;
+        return;
+      }
+
+      if (posts.length < PUBLIC_LIMIT) {
+        hasMorePublic = false;
+      }
+
+      const postsHtml = posts.map(post => renderPublicPostCard(post)).join('');
+      
+      if (publicSkip === 0) {
+        container.innerHTML = postsHtml;
+      } else {
+        container.insertAdjacentHTML('beforeend', postsHtml);
+      }
+
+      publicSkip += posts.length;
+
+      if (!hasMorePublic && publicSkip > 0) {
+        const endNotice = document.createElement('div');
+        endNotice.style.textAlign = 'center';
+        endNotice.style.padding = '1.5rem';
+        endNotice.style.color = 'var(--text-muted)';
+        endNotice.style.fontSize = '0.9rem';
+        endNotice.innerHTML = '🎉 You\'ve reached the end of the public feed.';
+        container.appendChild(endNotice);
+      }
+
+      if (hasMorePublic && document.documentElement.scrollHeight <= window.innerHeight + 100) {
+        isPublicLoading = false;
+        loadPublicFeed();
+        return;
+      }
+
+    } catch (err) {
+      if (spinner && spinner.parentNode) {
+        spinner.parentNode.removeChild(spinner);
+      }
+      if (publicSkip === 0) {
+        container.innerHTML = `<div class="alert alert-danger">Error connecting to public feed.</div>`;
+      }
+    } finally {
+      isPublicLoading = false;
+    }
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPublicFeed();
+    window.addEventListener('scroll', handlePublicScroll);
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Post Detail - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 680px; margin: 0 auto; padding: 1rem 0;">
+  <!-- Top Navigation / Back to Feed -->
+  <div style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+    <a href="{{ url_for('feed') }}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+      ← Back to Feed
+    </a>
+  </div>
+
+  <!-- Single Post Container -->
+  <div id="single-post-container">
+    <div class="card" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+      Loading post...
+    </div>
+  </div>
+</div>
+
+<script>
+const postId = {{ post_id }};
+const currentUserId = {{ current_user.id if current_user else 'null' }};
+const isModeratorOrAdmin = {{ 'true' if current_user and (current_user.is_admin or current_user.is_moderator) else 'false' }};
+const token = "{{ session.get('access_token', '') }}";
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSinglePost();
+});
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function loadSinglePost() {
+  const container = document.getElementById('single-post-container');
+  const reqHeaders = {};
+  if (token) {
+    reqHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      headers: reqHeaders
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        container.innerHTML = `
+          <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+            <h2 style="color: var(--primary-red); margin-bottom: 0.5rem;">Post Not Found</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">The post you are looking for does not exist or has been removed.</p>
+            <a href="/feed" class="btn btn-primary">Return to Feed</a>
+          </div>`;
+      } else if (res.status === 403 || res.status === 401) {
+        if (!token) {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">🔐</div>
+              <h2 style="color: var(--primary-red); margin-bottom: 0.5rem;">Login Required</h2>
+              <p style="color: var(--text-muted); margin-bottom: 1.5rem;">This post is protected by privacy settings. Please log in to your account to view it.</p>
+              <a href="/login?next=/post/${postId}" class="btn btn-primary">Log In to View Post</a>
+            </div>`;
+        } else {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+              <h2 style="color: var(--primary-red); margin-bottom: 0.5rem;">Restricted Content</h2>
+              <p style="color: var(--text-muted); margin-bottom: 1.5rem;">You do not have permission to view this post due to the author's privacy settings.</p>
+              <a href="/feed" class="btn btn-primary">Return to Feed</a>
+            </div>`;
+        }
+      } else {
+        container.innerHTML = `<div class="alert alert-danger">Error loading post details.</div>`;
+      }
+      return;
+    }
+
+    const post = await res.json();
+    container.innerHTML = renderPostCard(post);
+  } catch (err) {
+    console.error("Error loading post:", err);
+    container.innerHTML = `<div class="alert alert-danger">Connection error loading post.</div>`;
+  }
+}
+
+function formatVisibilityBadge(post) {
+  if (post.group_name || post.group_id) {
+    return '<span class="badge-visibility"><span class="badge-icon">🔒</span><span class="badge-text"> Group Only</span></span>';
+  }
+  const vis = (post.visibility || '').toLowerCase();
+  if (vis === 'internal-only' || vis === 'internal') {
+    return '<span class="badge-visibility" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);"><span class="badge-icon">🔐</span><span class="badge-text"> Internal Only</span></span>';
+  }
+  if (vis === 'friends') {
+    return '<span class="badge-visibility" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);"><span class="badge-icon">👥</span><span class="badge-text"> Friends Only</span></span>';
+  }
+  if (vis === 'private') {
+    return '<span class="badge-visibility" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3);"><span class="badge-icon">🔒</span><span class="badge-text"> Private</span></span>';
+  }
+  return '<span class="badge-visibility"><span class="badge-icon">🌐</span><span class="badge-text"> Public</span></span>';
+}
+
+function renderPostCard(post) {
+  const initial = post.author_username ? post.author_username.charAt(0).toUpperCase() : 'U';
+  const rawAvatar = post.author_avatar 
+    ? `<img src="${post.author_avatar}" class="user-avatar" style="object-fit: cover;" />`
+    : `<div class="user-avatar">${initial}</div>`;
+  
+  const statusVal = (post.author_online_status || 'unknown').toLowerCase();
+  let statusDotClass = 'unknown';
+  if (statusVal === 'online') statusDotClass = 'online';
+  else if (statusVal === 'offline') statusDotClass = 'offline';
+
+  const avatarHtml = `
+    <div class="avatar-container">
+      ${rawAvatar}
+      <span class="status-indicator ${statusDotClass}" data-username="${post.author_username}" title="Status: ${statusVal}"></span>
+    </div>`;
+  
+  const displayName = post.author_display_name || post.author_username;
+
+  let mediaHtml = '';
+  if (post.media_type === 'image' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <img src="${post.media_url}" alt="Post image attachment" loading="lazy" />
+      </div>`;
+  } else if (post.media_type === 'video' && post.media_url) {
+    mediaHtml = `
+      <div class="post-media-container">
+        <video controls preload="metadata">
+          <source src="${post.media_url}">
+          Your browser does not support HTML5 video player.
+        </video>
+      </div>`;
+  }
+
+  const isAuthor = post.author_id === currentUserId;
+  const canDelete = isAuthor || isModeratorOrAdmin;
+  const editBtn = isAuthor ? `
+    <button onclick="enablePostEdit(${post.id})" class="action-btn edit-action-btn" style="margin-left: auto;">
+      <span class="edit-icon">✏️</span> Edit
+    </button>` : '';
+  const deleteBtn = canDelete ? `
+    <button onclick="deletePost(${post.id})" class="action-btn delete-action-btn" style="${!isAuthor ? 'margin-left: auto;' : ''}">
+      <span class="delete-icon">🗑️</span> Delete ${!isAuthor ? '(Mod)' : ''}
+    </button>` : '';
+
+  let privacyBadgeHtml = formatVisibilityBadge(post);
+
+  const commentsHtml = post.comments.map(c => {
+    const cName = c.author_display_name || c.author_username;
+    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+    const cAvatarHtml = c.author_avatar 
+      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+    const canDeleteComment = c.author_id === currentUserId || post.author_id === currentUserId || isModeratorOrAdmin;
+    const commentDeleteBtn = canDeleteComment ? `
+      <button onclick="deleteComment(${post.id}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
+        <span class="delete-icon">🗑️</span> ${!(c.author_id === currentUserId || post.author_id === currentUserId) ? '(Mod)' : ''}
+      </button>
+    ` : '';
+
+    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+
+    return `
+      <div class="comment-item" id="comment-${c.id}">
+        <a href="/profile/${c.author_username}" class="comment-avatar-link">
+          ${cAvatarHtml}
+        </a>
+        <div class="comment-body">
+          <div class="comment-text-content">
+            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
+            <span class="comment-text">${escapeHtml(c.content)}</span>
+          </div>
+          <div class="comment-actions-meta">
+            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
+            ${commentDeleteBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="post-card" id="post-${post.id}">
+      <div class="post-header">
+        <div class="post-author-info">
+          ${avatarHtml}
+          <div>
+            <a href="/profile/${post.author_username}" class="author-name">${escapeHtml(displayName)}</a>
+            <div class="post-meta">
+              @${escapeHtml(post.author_username)} &bull; ${formatDateTime(post.created_at)}
+              ${post.group_name ? ` in <strong style="color:var(--primary-red);">${escapeHtml(post.group_name)}</strong>` : ''}
+            </div>
+          </div>
+        </div>
+        ${privacyBadgeHtml}
+      </div>
+
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      ${mediaHtml}
+
+      <div class="post-actions">
+        <button onclick="toggleLike(${post.id})" class="action-btn like-action-btn ${post.user_has_liked ? 'active' : ''}">
+          ${post.user_has_liked ? '❤️' : '🤍'} <span id="likes-count-${post.id}">${post.likes_count}</span> Likes
+        </button>
+        <button onclick="sharePost(${post.id}, \`${escapeHtml(post.content || '').replace(/`/g, '\\`')}\`)" class="action-btn share-action-btn">
+          🔗 Share
+        </button>
+        ${editBtn}
+        ${deleteBtn}
+      </div>
+
+      <div class="comments-section">
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 350px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+          <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+          <button onclick="submitComment(${post.id})" class="btn btn-secondary btn-sm">Comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleLike(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const likesCountEl = document.getElementById(`likes-count-${postId}`);
+      const btn = likesCountEl.closest('.like-action-btn');
+      if (data.liked) {
+        btn.classList.add('active');
+        btn.innerHTML = `❤️ <span id="likes-count-${postId}">${data.likes_count}</span> Likes`;
+      } else {
+        btn.classList.remove('active');
+        btn.innerHTML = `🤍 <span id="likes-count-${postId}">${data.likes_count}</span> Likes`;
+      }
+    }
+  } catch (err) {
+    console.error("Error toggling like:", err);
+  }
+}
+
+async function submitComment(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  const content = input.value.trim();
+  if (!content) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      json: true,
+      body: JSON.stringify({ content })
+    });
+
+    if (res.ok) {
+      input.value = '';
+      loadSinglePost();
+    }
+  } catch (err) {
+    console.error("Error submitting comment:", err);
+  }
+}
+
+async function deleteComment(postId, commentId) {
+  if (!confirm("Are you sure you want to delete this comment?")) return;
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      loadSinglePost();
+    }
+  } catch (err) {
+    console.error("Error deleting comment:", err);
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm("Are you sure you want to delete this post?")) return;
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      window.location.href = '/feed';
+    }
+  } catch (err) {
+    console.error("Error deleting post:", err);
+  }
+}
+</script>
+{% endblock %}
