@@ -1331,3 +1331,98 @@ function openWysiwygLinkModal(editor, syncCallback) {
   textInput.onkeydown = keyHandler;
 }
 
+// -------------------------------------------------------------
+// Comment Section Emoji Picker Functions
+// -------------------------------------------------------------
+
+function toggleCommentEmojiPicker(postId, btnEl) {
+  let menu = document.getElementById(`comment-emoji-menu-${postId}`);
+  if (!menu) return;
+
+  const isVisible = menu.style.display === 'block';
+
+  document.querySelectorAll('.comment-emoji-menu').forEach(m => {
+    if (m !== menu) m.style.display = 'none';
+  });
+
+  if (isVisible) {
+    menu.style.display = 'none';
+  } else {
+    menu.style.display = 'block';
+    renderCommentEmojiGrid(postId);
+    const searchInput = menu.querySelector('.emoji-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      setTimeout(() => searchInput.focus(), 50);
+    }
+  }
+}
+
+function renderCommentEmojiGrid(postId, filterText = '') {
+  const grid = document.getElementById(`comment-emoji-grid-${postId}`);
+  const footer = document.getElementById(`comment-emoji-footer-${postId}`);
+  if (!grid) return;
+
+  const query = filterText.trim().toLowerCase();
+  const filtered = WYSIWYG_EMOJIS.filter(e => {
+    if (!query) return true;
+    return e.name.toLowerCase().includes(query) ||
+           e.keywords.toLowerCase().includes(query) ||
+           e.char.includes(query);
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div style="grid-column: span 8; color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 0.75rem 0;">No matching emojis</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(e => `
+    <button type="button" class="emoji-item-btn" title="${escapeHtmlAttr(e.name)}" data-emoji="${e.char}" data-name="${escapeHtmlAttr(e.name)}">${e.char}</button>
+  `).join('');
+
+  grid.querySelectorAll('.emoji-item-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      if (footer) {
+        const name = btn.getAttribute('data-name');
+        const char = btn.getAttribute('data-emoji');
+        footer.innerText = `${char} ${name}`;
+      }
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      if (footer) {
+        footer.innerText = 'Hover over an emoji';
+      }
+    });
+
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const emoji = btn.getAttribute('data-emoji');
+      const input = document.getElementById(`comment-input-${postId}`);
+      if (input) {
+        const start = input.selectionStart || input.value.length;
+        const end = input.selectionEnd || input.value.length;
+        const text = input.value;
+        input.value = text.substring(0, start) + emoji + text.substring(end);
+        input.focus();
+        input.setSelectionRange(start + emoji.length, start + emoji.length);
+      }
+      const menu = document.getElementById(`comment-emoji-menu-${postId}`);
+      if (menu) menu.style.display = 'none';
+    });
+  });
+}
+
+function filterCommentEmojis(postId, filterText) {
+  renderCommentEmojiGrid(postId, filterText);
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.comment-emoji-wrapper')) {
+    document.querySelectorAll('.comment-emoji-menu').forEach(m => {
+      m.style.display = 'none';
+    });
+  }
+});
+
+

@@ -876,8 +876,18 @@ function renderPostCard(post) {
 
       <div class="comments-section">
         <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem;">
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem; align-items: center;">
           <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+          <div class="comment-emoji-wrapper">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCommentEmojiPicker(${post.id}, this)" title="Add Emoji" style="padding: 0.4rem 0.65rem;">😀</button>
+            <div class="comment-emoji-menu" id="comment-emoji-menu-${post.id}">
+              <div class="emoji-menu-header">
+                <input type="text" class="emoji-search-input" placeholder="🔍 Search emojis..." oninput="filterCommentEmojis(${post.id}, this.value)">
+              </div>
+              <div class="emoji-menu-grid" id="comment-emoji-grid-${post.id}"></div>
+              <div class="emoji-hover-footer" id="comment-emoji-footer-${post.id}">Hover over an emoji</div>
+            </div>
+          </div>
           <button onclick="submitComment(${post.id})" class="btn btn-secondary btn-sm">Comment</button>
         </div>
       </div>
