@@ -1589,3 +1589,156 @@ body.messages-page .main-container {
   border-color: var(--primary-red) !important;
   box-shadow: 0 0 0 3.5px var(--primary-red-glow) !important;
 }
+
+/* Post Content & Comment Links */
+.post-content a,
+.comment-text a,
+.wysiwyg-editor a {
+  color: var(--primary-red);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  word-break: break-word;
+  font-weight: 600;
+  padding: 0 2px;
+  border-radius: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.post-content a:hover,
+.comment-text a:hover,
+.wysiwyg-editor a:hover {
+  color: #ef4444; /* Lighter red on hover */
+  text-decoration: underline;
+}
+
+[data-theme="dark"] .post-content a,
+[data-theme="dark"] .comment-text a,
+[data-theme="dark"] .wysiwyg-editor a {
+  color: var(--primary-red);
+}
+
+[data-theme="dark"] .post-content a:hover,
+[data-theme="dark"] .comment-text a:hover,
+[data-theme="dark"] .wysiwyg-editor a:hover {
+  color: #f87171; /* Lighter coral-red on hover for dark theme */
+  text-decoration: underline;
+}
+
+
+
+/* WYSIWYG Rich Text Editor Styling */
+.wysiwyg-container {
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--input-bg);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  transition: var(--transition);
+}
+
+.wysiwyg-container:focus-within {
+  border-color: var(--primary-red);
+  box-shadow: 0 0 0 3.5px var(--primary-red-glow);
+}
+
+.wysiwyg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+  flex-wrap: wrap;
+}
+
+.wysiwyg-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  transition: var(--transition);
+}
+
+.wysiwyg-btn:hover {
+  background: var(--bg-color);
+  border-color: var(--border-color);
+  color: var(--primary-red);
+}
+
+.wysiwyg-btn.active {
+  background: var(--primary-red-light);
+  color: var(--primary-red);
+  border-color: var(--primary-red);
+}
+
+.wysiwyg-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 0.25rem;
+}
+
+.wysiwyg-editor {
+  min-height: 100px;
+  max-height: 320px;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
+  outline: none;
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  border: none;
+  box-shadow: none;
+}
+
+.wysiwyg-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.wysiwyg-editor a {
+  color: var(--primary-red);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+/* WYSIWYG Link Modal */
+.wysiwyg-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.wysiwyg-modal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-lg);
+}

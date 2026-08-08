@@ -39,7 +39,7 @@
 
       <form id="create-post-form" enctype="multipart/form-data">
         <div class="form-group">
-          <textarea id="post-content" name="content" class="form-control" placeholder="What's on your mind?" autocapitalize="sentences"></textarea>
+          <div id="feed-post-wysiwyg"></div>
         </div>
 
         <!-- Drag & Drop Media Attachment Dropzone -->
@@ -118,33 +118,19 @@ let hasMore = true;
 let searchQuery = '';
 let searchUser = '';
 
+let feedWysiwyg = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   setupSearch();
   resetAndLoadFeed();
 
-  const postContentInput = document.getElementById('post-content');
-  if (postContentInput) {
-    postContentInput.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        const postForm = document.getElementById('create-post-form');
-        if (postForm) {
-          if (typeof postForm.requestSubmit === 'function') {
-            postForm.requestSubmit();
-          } else {
-            postForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-          }
-        }
-      }
-    });
-  }
+  feedWysiwyg = setupWysiwygEditor('feed-post-wysiwyg', "What's on your mind?");
 
   const postForm = document.getElementById('create-post-form');
   postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const postContentInput = document.getElementById('post-content');
-    const contentVal = postContentInput ? postContentInput.value : '';
+    const contentVal = feedWysiwyg ? feedWysiwyg.getContent() : '';
 
     const formData = new FormData(postForm);
     formData.set('content', contentVal);
@@ -160,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok) {
         postForm.reset();
+        if (feedWysiwyg) feedWysiwyg.clear();
         clearMediaAttachment();
         resetAndLoadFeed();
       } else {
@@ -425,7 +412,7 @@ function renderPostCard(post) {
         <div class="comment-body">
           <div class="comment-text-content">
             <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-            <span class="comment-text">${escapeHtml(c.content)}</span>
+            <span class="comment-text">${formatPostContent(c.content)}</span>
           </div>
           <div class="comment-actions-meta">
             ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
@@ -455,7 +442,7 @@ function renderPostCard(post) {
         </div>
       </div>
 
-      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${formatPostContent(post.content || '')}</div>
       ${mediaHtml}
 
       <div class="post-actions">

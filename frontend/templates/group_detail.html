@@ -121,7 +121,7 @@
 
       <form id="create-group-post-form" enctype="multipart/form-data">
         <div class="form-group">
-          <textarea id="group-post-content" name="content" class="form-control" placeholder="Share something with group members..." autocapitalize="sentences"></textarea>
+          <div id="group-post-wysiwyg"></div>
         </div>
 
         <!-- Drag & Drop Media Attachment Dropzone -->
@@ -186,35 +186,20 @@ let hasMore = true;
 let searchQuery = '';
 let searchUser = '';
 let isAdminPanelCollapsed = false;
+let groupWysiwyg = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   setupGroupSearch();
   loadGroupDetails();
   setupMediaDropzone('group-media-dropzone', 'group-file-input', 'group-dropzone-preview-container');
 
-  const groupPostContentInput = document.getElementById('group-post-content');
-  if (groupPostContentInput) {
-    groupPostContentInput.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        const postForm = document.getElementById('create-group-post-form');
-        if (postForm) {
-          if (typeof postForm.requestSubmit === 'function') {
-            postForm.requestSubmit();
-          } else {
-            postForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-          }
-        }
-      }
-    });
-  }
+  groupWysiwyg = setupWysiwygEditor('group-post-wysiwyg', "Share something with group members...");
 
   const postForm = document.getElementById('create-group-post-form');
   postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const postContentInput = document.getElementById('group-post-content');
-    const contentVal = postContentInput ? postContentInput.value : '';
+    const contentVal = groupWysiwyg ? groupWysiwyg.getContent() : '';
 
     const formData = new FormData(postForm);
     formData.set('content', contentVal);
@@ -230,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok) {
         postForm.reset();
+        if (groupWysiwyg) groupWysiwyg.clear();
         clearGroupMediaAttachment();
         resetAndLoadGroupFeed();
       } else {
@@ -848,7 +834,7 @@ function renderPostCard(post) {
         <div class="comment-body">
           <div class="comment-text-content">
             <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-            <span class="comment-text">${escapeHtml(c.content)}</span>
+            <span class="comment-text">${formatPostContent(c.content)}</span>
           </div>
           <div class="comment-actions-meta">
             ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
@@ -874,7 +860,7 @@ function renderPostCard(post) {
         <span class="badge-visibility" style="background: rgba(220, 38, 38, 0.12); color: var(--primary-red); border-color: rgba(220, 38, 38, 0.3);"><span class="badge-icon">🔒</span><span class="badge-text"> Group Only</span></span>
       </div>
 
-      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${formatPostContent(post.content || '')}</div>
       ${mediaHtml}
 
       <div class="post-actions">

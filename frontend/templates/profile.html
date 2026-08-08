@@ -392,7 +392,7 @@ function renderProfilePostCard(post) {
         <div class="comment-body">
           <div class="comment-text-content">
             <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-            <span class="comment-text">${escapeHtml(c.content)}</span>
+            <span class="comment-text">${formatPostContent(c.content)}</span>
           </div>
           <div class="comment-actions-meta">
             ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
@@ -422,7 +422,7 @@ function renderProfilePostCard(post) {
         </div>
       </div>
 
-      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${escapeHtml(post.content || '')}</div>
+      <div class="post-content" id="post-content-text-${post.id}" data-raw-content="${escapeHtml(post.content || '')}">${formatPostContent(post.content || '')}</div>
       ${mediaHtml}
 
       <div class="post-actions">

@@ -783,3 +783,308 @@ function rejectNonEssentialCookies() {
   showToast("Opted out of non-essential cookies. Only essential cookies will be used.", "info");
 }
 
+// -------------------------------------------------------------
+// WYSIWYG Rich Text Editor & Content Formatting
+// -------------------------------------------------------------
+
+function formatPostContent(rawContent) {
+  if (!rawContent) return '';
+  let clean = sanitizePostHtml(rawContent);
+  clean = autolinkPlainUrls(clean);
+  return clean;
+}
+
+function sanitizePostHtml(html) {
+  if (!html) return '';
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'SPAN']);
+
+    function cleanNode(node) {
+      const children = Array.from(node.childNodes);
+      children.forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          if (!allowedTags.has(child.tagName)) {
+            const textNode = doc.createTextNode(child.textContent);
+            child.parentNode.replaceChild(textNode, child);
+          } else {
+            const attrs = Array.from(child.attributes);
+            attrs.forEach(attr => {
+              if (child.tagName === 'A') {
+                if (!['href', 'target', 'rel', 'title'].includes(attr.name.toLowerCase())) {
+                  child.removeAttribute(attr.name);
+                }
+              } else {
+                child.removeAttribute(attr.name);
+              }
+            });
+
+            if (child.tagName === 'A') {
+              let href = child.getAttribute('href') || '';
+              if (href && !href.match(/^(https?:\/\/|\/|mailto:)/i)) {
+                if (href.match(/^www\./i)) {
+                  href = 'http://' + href;
+                } else {
+                  href = 'https://' + href;
+                }
+                child.setAttribute('href', href);
+              }
+              child.setAttribute('target', '_blank');
+              child.setAttribute('rel', 'noopener noreferrer');
+            }
+
+            cleanNode(child);
+          }
+        }
+      });
+    }
+
+    cleanNode(doc.body);
+    return doc.body.innerHTML;
+  } catch (e) {
+    return escapeHtml(html);
+  }
+}
+
+function autolinkPlainUrls(html) {
+  if (!html) return '';
+  const combinedRegex = /(<a\s+[^>]*>[\s\S]*?<\/a>)|((?:https?:\/\/|www\.)[^\s<]+[^\s<.,:;"')\]>])/gi;
+
+  return html.replace(combinedRegex, (match, aTag, url) => {
+    if (aTag) return aTag;
+
+    let href = url;
+    if (url.toLowerCase().startsWith('www.')) {
+      href = 'http://' + url;
+    }
+    return `<a href="${escapeHtmlAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtmlText(url)}</a>`;
+  });
+}
+
+function escapeHtmlAttr(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHtmlText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?") {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return null;
+
+  wrapper.innerHTML = `
+    <div class="wysiwyg-container">
+      <div class="wysiwyg-toolbar">
+        <button type="button" class="wysiwyg-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button type="button" class="wysiwyg-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button type="button" class="wysiwyg-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+        <button type="button" class="wysiwyg-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+        <span class="wysiwyg-divider"></span>
+        <button type="button" class="wysiwyg-btn wysiwyg-link-btn" title="Insert Link (Ctrl+K)">🔗 Link</button>
+      </div>
+      <div class="wysiwyg-editor" contenteditable="true" data-placeholder="${escapeHtmlAttr(placeholderText)}"></div>
+      <input type="hidden" class="wysiwyg-hidden-input" name="content">
+    </div>
+  `;
+
+  const toolbar = wrapper.querySelector('.wysiwyg-toolbar');
+  const editor = wrapper.querySelector('.wysiwyg-editor');
+  const hiddenInput = wrapper.querySelector('.wysiwyg-hidden-input');
+
+  function syncContent() {
+    let html = editor.innerHTML;
+    if (html === '<br>' || html.trim() === '') {
+      html = '';
+    }
+    hiddenInput.value = html;
+  }
+
+  editor.addEventListener('input', syncContent);
+  editor.addEventListener('blur', syncContent);
+
+  toolbar.querySelectorAll('.wysiwyg-btn[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cmd = btn.getAttribute('data-cmd');
+      document.execCommand(cmd, false, null);
+      editor.focus();
+      syncContent();
+      updateActiveStates();
+    });
+  });
+
+  const linkBtn = toolbar.querySelector('.wysiwyg-link-btn');
+  if (linkBtn) {
+    linkBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openWysiwygLinkModal(editor, syncContent);
+    });
+  }
+
+  editor.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      openWysiwygLinkModal(editor, syncContent);
+    }
+  });
+
+  function updateActiveStates() {
+    ['bold', 'italic', 'underline', 'strikeThrough'].forEach(cmd => {
+      const b = toolbar.querySelector(`[data-cmd="${cmd}"]`);
+      if (b) {
+        if (document.queryCommandState(cmd)) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  editor.addEventListener('keyup', updateActiveStates);
+  editor.addEventListener('mouseup', updateActiveStates);
+
+  return {
+    editor,
+    hiddenInput,
+    getContent: () => {
+      syncContent();
+      return hiddenInput.value;
+    },
+    setContent: (html) => {
+      editor.innerHTML = html || '';
+      syncContent();
+    },
+    clear: () => {
+      editor.innerHTML = '';
+      syncContent();
+    }
+  };
+}
+
+function openWysiwygLinkModal(editor, syncCallback) {
+  let modal = document.getElementById('wysiwyg-link-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'wysiwyg-link-modal';
+    modal.className = 'wysiwyg-modal-overlay';
+    modal.innerHTML = `
+      <div class="wysiwyg-modal-card">
+        <h4 style="margin-bottom: 0.85rem; color: var(--primary-red); font-size: 1.1rem; display: flex; align-items: center; gap: 0.4rem;">
+          🔗 Insert Link
+        </h4>
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+          <label style="font-size: 0.85rem; font-weight: 600;">Link Text (Display Label)</label>
+          <input type="text" id="wysiwyg-link-text" class="form-control" placeholder="e.g. My Portfolio or Click Here">
+        </div>
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.85rem; font-weight: 600;">Link URL</label>
+          <input type="text" id="wysiwyg-link-url" class="form-control" placeholder="https://example.com">
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button type="button" id="wysiwyg-modal-cancel" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="button" id="wysiwyg-modal-insert" class="btn btn-primary btn-sm">Insert Link</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  const selection = window.getSelection();
+  let selectedText = '';
+  let savedRange = null;
+
+  if (selection.rangeCount > 0) {
+    savedRange = selection.getRangeAt(0).cloneRange();
+    selectedText = selection.toString().trim();
+  }
+
+  const textInput = document.getElementById('wysiwyg-link-text');
+  const urlInput = document.getElementById('wysiwyg-link-url');
+  const cancelBtn = document.getElementById('wysiwyg-modal-cancel');
+  const insertBtn = document.getElementById('wysiwyg-modal-insert');
+
+  textInput.value = selectedText;
+  urlInput.value = '';
+  modal.style.display = 'flex';
+
+  setTimeout(() => {
+    if (selectedText) {
+      urlInput.focus();
+    } else {
+      textInput.focus();
+    }
+  }, 50);
+
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+
+  cancelBtn.onclick = closeModal;
+
+  function handleInsert() {
+    let url = urlInput.value.trim();
+    let text = textInput.value.trim();
+
+    if (!url) {
+      alert("Please enter a URL for the link.");
+      urlInput.focus();
+      return;
+    }
+
+    if (!text) {
+      text = url;
+    }
+
+    if (!url.match(/^(https?:\/\/|\/|mailto:)/i)) {
+      if (url.match(/^www\./i)) {
+        url = 'http://' + url;
+      } else {
+        url = 'https://' + url;
+      }
+    }
+
+    closeModal();
+    editor.focus();
+
+    if (savedRange) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
+    }
+
+    const linkHtml = `<a href="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtmlText(text)}</a>`;
+    document.execCommand('insertHTML', false, linkHtml);
+
+    if (syncCallback) syncCallback();
+  }
+
+  insertBtn.onclick = handleInsert;
+
+  const keyHandler = (e) => {
+    if (modal.style.display === 'flex') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleInsert();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeModal();
+      }
+    }
+  };
+
+  urlInput.onkeydown = keyHandler;
+  textInput.onkeydown = keyHandler;
+}
+
