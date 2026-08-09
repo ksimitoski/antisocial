@@ -377,6 +377,35 @@ def respond_friend_request(
         raise HTTPException(status_code=400, detail="Action must be 'accept' or 'decline'")
 
 
+@router.delete("/friends/{friendship_id}")
+@router.post("/friends/unfriend/{friendship_id}")
+def unfriend(
+    friendship_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    friendship = db.query(models.Friendship).filter(models.Friendship.id == friendship_id).first()
+    if not friendship:
+        raise HTTPException(status_code=404, detail="Friendship not found")
+
+    if current_user.id not in (friendship.requester_id, friendship.addressee_id):
+        raise HTTPException(status_code=403, detail="You are not part of this friendship")
+
+    user1_id = friendship.requester_id
+    user2_id = friendship.addressee_id
+
+    # Clean up any follow relationships between the two users
+    db.query(models.UserFollow).filter(
+        ((models.UserFollow.follower_id == user1_id) & (models.UserFollow.followed_id == user2_id)) |
+        ((models.UserFollow.follower_id == user2_id) & (models.UserFollow.followed_id == user1_id))
+    ).delete(synchronize_session=False)
+
+    db.delete(friendship)
+    db.commit()
+
+    return {"message": "Successfully unfriended"}
+
+
 @router.get("/friends/list")
 def list_friends(
     db: Session = Depends(get_db),

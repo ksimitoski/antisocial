@@ -145,10 +145,38 @@
             <div style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@${escapeHtml(f.username)} &bull; <span class="status-text-badge" data-username="${f.username}">${statusBadgeText}</span></div>
           </div>
         </div>
-        <a href="/profile/${f.username}" class="btn btn-secondary btn-sm" style="flex-shrink:0; white-space:nowrap;">View Profile</a>
+        <div style="display:flex; gap:0.4rem; flex-shrink:0;">
+          <a href="/profile/${f.username}" class="btn btn-secondary btn-sm" style="flex-shrink:0; white-space:nowrap;">View Profile</a>
+          <button onclick="unfriendUser(${f.friendship_id}, '${escapeHtml(f.username)}')" class="btn btn-secondary btn-sm" style="flex-shrink:0; white-space:nowrap; color:#ef4444; border-color:rgba(239,68,68,0.4);">Unfriend</button>
+        </div>
       </div>
     `;
     }).join('');
+  }
+
+  function unfriendUser(id, username) {
+    showCustomConfirm(
+      `Are you sure you want to un-friend @${username}?`,
+      "Unfriend User",
+      async () => {
+        try {
+          const res = await fetch(`/api/users/friends/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            loadFriends();
+          } else {
+            const err = await res.json();
+            showCustomAlert(err.detail || 'Could not un-friend user', 'Unfriend Failed');
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      "Unfriend",
+      "btn-danger"
+    );
   }
 
   async function respondFriend(id, action) {

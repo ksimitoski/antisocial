@@ -351,8 +351,13 @@ function showCustomAlert(message, title = "Notice", onCloseCallback = null) {
 
   titleEl.innerText = title;
   bodyEl.innerHTML = `<p>${escapeHtml(message)}</p>`;
-  footerEl.innerHTML = `<button onclick="closeCustomModal()" class="btn btn-primary btn-sm">OK</button>`;
+  footerEl.innerHTML = `<button id="modal-alert-ok-btn" onclick="closeCustomModal()" class="btn btn-primary btn-sm">OK</button>`;
   modal.style.display = 'flex';
+
+  setTimeout(() => {
+    const okBtn = document.getElementById('modal-alert-ok-btn');
+    if (okBtn) okBtn.focus();
+  }, 50);
 }
 
 
@@ -381,6 +386,11 @@ function showCustomConfirm(message, title = "Confirm Action", onConfirm, confirm
   };
 
   modal.style.display = 'flex';
+
+  setTimeout(() => {
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    if (confirmBtn) confirmBtn.focus();
+  }, 50);
 }
 
 function showCustomPrompt(message, placeholder = "", title = "Input Required", onPromptSubmit, inputType = "text") {
@@ -496,6 +506,10 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeImageModal();
+    const customModal = document.getElementById('custom-modal-overlay');
+    if (customModal && customModal.style.display === 'flex') {
+      closeCustomModal();
+    }
   }
 });
 

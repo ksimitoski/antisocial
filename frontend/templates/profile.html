@@ -234,12 +234,38 @@ async function loadProfile() {
         const followBtnHtml = isFollowing
           ? `<button onclick="toggleFollow('${profileUsername}')" class="btn btn-secondary btn-sm" id="follow-btn">✓ Following</button>`
           : `<button onclick="toggleFollow('${profileUsername}')" class="btn btn-primary btn-sm" id="follow-btn">🔔 Follow</button>`;
-        actionBox.innerHTML = `<span class="badge-visibility" style="background:#dcfce7; color:#15803d;">✓ Friends</span> ${followBtnHtml} ${messageBtnHtml}`;
+        const unfriendBtnHtml = `<button onclick="unfriendUser(${fs.id})" class="btn btn-secondary btn-sm" style="color:#ef4444; border-color:rgba(239,68,68,0.4);">Unfriend</button>`;
+        actionBox.innerHTML = `<span class="badge-visibility" style="background:#dcfce7; color:#15803d;">✓ Friends</span> ${followBtnHtml} ${unfriendBtnHtml} ${messageBtnHtml}`;
       }
     }
   } catch (err) {
     console.error("Error loading profile", err);
   }
+}
+
+function unfriendUser(id) {
+  showCustomConfirm(
+    `Are you sure you want to un-friend @${profileUsername}?`,
+    "Unfriend User",
+    async () => {
+      try {
+        const res = await fetch(`/api/users/friends/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          loadProfile();
+        } else {
+          const err = await res.json();
+          showCustomAlert(err.detail || 'Could not un-friend user', 'Unfriend Failed');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    "Unfriend",
+    "btn-danger"
+  );
 }
 
 async function toggleFollow(username) {

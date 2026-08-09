@@ -88,3 +88,12 @@ def test_friend_follow_and_post_notifications(client):
     data2 = poll_res2.json()
     assert len(data2["posts"]) == 0
 
+    # Test un-friending
+    unfriend_res = client.delete(f"/api/users/friends/{fs_id}", headers=h1)
+    assert unfriend_res.status_code == 200
+
+    # Profile should now reflect no friendship
+    res_p2_unfriend = client.get("/api/users/profile/flw_user2", headers=h1)
+    assert res_p2_unfriend.json()["friendship_status"] is None
+
+
