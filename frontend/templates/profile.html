@@ -395,20 +395,6 @@ function renderProfilePostCard(post) {
     `;
   }
 
-  const comments = post.comments || [];
-  const commentsHtml = comments.map(c => {
-    const cName = c.author_display_name || c.author_username;
-    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
-    const cAvatarHtml = c.author_avatar 
-      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
-      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
-    const canDeleteComment = c.author_id === currentUserId || post.author_id === currentUserId || isModeratorOrAdmin;
-    const commentDeleteBtn = canDeleteComment ? `
-      <button onclick="deleteProfileComment(${post.id}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
-        <span class="delete-icon">🗑️</span> ${! (c.author_id === currentUserId || post.author_id === currentUserId) ? '(Mod)' : ''}
-      </button>
-    ` : '';
-
   const commentsHtml = renderCommentTreeHtml(post.comments || [], post.id, currentUserId, currentUserRole, post.author_id);
 
   return `
