@@ -835,6 +835,64 @@ textarea.form-control {
   color: var(--text-main);
 }
 
+/* Comment Replies & Single-Level Indentation */
+.comment-group {
+  margin-bottom: 0.65rem;
+}
+
+.comment-replies-container {
+  margin-left: 1.5rem;
+  padding-left: 0.65rem;
+  border-left: 2px solid var(--border-color);
+  margin-top: 0.4rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.comment-reply-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.comment-reply-btn:hover {
+  color: var(--primary-red);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.toggle-replies-btn {
+  background: none;
+  border: none;
+  color: var(--primary-red);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  margin-left: 1.5rem;
+  margin-bottom: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.toggle-replies-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  text-decoration: underline;
+}
+
+.comment-mention-tag {
+  color: var(--primary-red);
+  font-weight: 700;
+  margin-right: 0.2rem;
+}
+
 
 /* Footer */
 footer {

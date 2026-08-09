@@ -183,6 +183,7 @@ def get_feed(
                 c_display_name = privacy.get_display_name(c.author)
                 comments_data.append({
                     "id": c.id,
+                    "parent_id": c.parent_id,
                     "author_id": c.author_id,
                     "author_username": c.author.username,
                     "author_display_name": c.display_name if hasattr(c, 'display_name') else c_display_name,
@@ -250,6 +251,7 @@ def get_single_post(
         c_display_name = privacy.get_display_name(c.author)
         comments_data.append({
             "id": c.id,
+            "parent_id": c.parent_id,
             "author_id": c.author_id,
             "author_username": c.author.username,
             "author_display_name": c.display_name if hasattr(c, 'display_name') else c_display_name,
@@ -422,10 +424,31 @@ def add_comment(
     if not privacy.can_view_post(db, current_user.id, post):
         raise HTTPException(status_code=403, detail="Not authorized to interact with this post")
 
+    effective_parent_id = None
+    content = (comment_data.content or "").strip()
+
+    if comment_data.parent_id:
+        parent_comment = db.query(models.Comment).filter(
+            models.Comment.id == comment_data.parent_id,
+            models.Comment.post_id == post_id
+        ).first()
+        if not parent_comment:
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+
+        effective_parent_id = parent_comment.id
+        parent_author_username = parent_comment.author.username
+        mention_prefix = f"@{parent_author_username}:"
+
+        # If replying to a reply, ensure @username: prefix is present
+        if parent_comment.parent_id or not content.lower().startswith(mention_prefix.lower()):
+            if not content.lower().startswith(mention_prefix.lower()) and not content.lower().startswith(f"@{parent_author_username.lower()} "):
+                content = f"{mention_prefix} {content}"
+
     comment = models.Comment(
         post_id=post_id,
         author_id=current_user.id,
-        content=comment_data.content
+        parent_id=effective_parent_id,
+        content=content
     )
     db.add(comment)
     db.commit()
@@ -438,6 +461,7 @@ def add_comment(
     return {
         "id": comment.id,
         "post_id": post_id,
+        "parent_id": comment.parent_id,
         "author_id": current_user.id,
         "author_username": current_user.username,
         "author_display_name": display_name,

@@ -173,8 +173,9 @@
 <script>
 const token = "{{ session.get('access_token') }}";
 const currentUsername = "{{ current_user.username }}";
-const currentUserId = parseInt("{{ current_user.id }}");
+const currentUserId = parseInt("{{ current_user.id if current_user else 0 }}");
 const isModeratorOrAdmin = {{ 'true' if (current_user and current_user.is_moderator) else 'false' }};
+const currentUserRole = isModeratorOrAdmin ? 'moderator' : 'user';
 const groupId = parseInt("{{ group_id }}");
 
 let currentGroupData = null;
@@ -827,23 +828,7 @@ function renderPostCard(post) {
     const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
 
     return `
-      <div class="comment-item" id="comment-${c.id}">
-        <a href="/profile/${c.author_username}" class="comment-avatar-link">
-          ${cAvatarHtml}
-        </a>
-        <div class="comment-body">
-          <div class="comment-text-content">
-            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-            <span class="comment-text">${formatPostContent(c.content)}</span>
-          </div>
-          <div class="comment-actions-meta">
-            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
-            ${commentDeleteBtn}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  const commentsHtml = renderCommentTreeHtml(post.comments || [], post.id, currentUserId, currentUserRole, post.author_id);
 
   return `
     <div class="post-card" id="post-${post.id}">
@@ -875,7 +860,8 @@ function renderPostCard(post) {
       </div>
 
       <div class="comments-section">
-        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div id="comment-reply-target-${post.id}" style="display: none; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem; background: var(--input-bg); padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); width: fit-content;"></div>
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 320px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
         <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem; align-items: center;">
           <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
           <div class="comment-emoji-wrapper">
@@ -922,6 +908,8 @@ async function submitComment(postId) {
   const content = input.value.trim();
   if (!content) return;
 
+  const parentId = input.dataset.parentId ? parseInt(input.dataset.parentId) : null;
+
   try {
     const res = await fetch(`/api/posts/${postId}/comments`, {
       method: 'POST',
@@ -929,44 +917,22 @@ async function submitComment(postId) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ content })
+      body: JSON.stringify({ content, parent_id: parentId })
     });
 
     if (res.ok) {
-      const c = await res.json();
       input.value = '';
-      const commentsList = document.getElementById(`comments-list-${postId}`);
-      if (commentsList) {
-        const cName = c.author_display_name || c.author_username;
-        const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
-        const cAvatarHtml = c.author_avatar 
-          ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
-          : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+      clearCommentReplyTarget(postId);
 
-        const dateStr = c.created_at ? formatDateTime(c.created_at) : formatDateTime(new Date().toISOString());
-
-        const commentEl = document.createElement('div');
-        commentEl.className = 'comment-item';
-        commentEl.id = `comment-${c.id}`;
-        commentEl.innerHTML = `
-          <a href="/profile/${c.author_username}" class="comment-avatar-link">
-            ${cAvatarHtml}
-          </a>
-          <div class="comment-body">
-            <div class="comment-text-content">
-              <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-              <span class="comment-text">${escapeHtml(c.content)}</span>
-            </div>
-            <div class="comment-actions-meta">
-              <span class="comment-date">${escapeHtml(dateStr)}</span>
-              <button onclick="deleteComment(${postId}, ${c.id})" class="comment-delete-btn" title="Delete Comment">
-                <span class="delete-icon">🗑️</span>
-              </button>
-            </div>
-          </div>
-        `;
-        commentsList.prepend(commentEl);
-        commentsList.scrollTop = 0;
+      const postRes = await fetch(`/api/posts/${postId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (postRes.ok) {
+        const postData = await postRes.json();
+        const commentsList = document.getElementById(`comments-list-${postId}`);
+        if (commentsList) {
+          commentsList.innerHTML = renderCommentTreeHtml(postData.comments || [], postId, currentUserId, currentUserRole, postData.author_id);
+        }
       }
     }
   } catch (err) {
@@ -1051,8 +1017,16 @@ async function deleteComment(postId, commentId) {
       });
 
       if (res.ok) {
-        const cEl = document.getElementById(`comment-${commentId}`);
-        if (cEl) cEl.remove();
+        const postRes = await fetch(`/api/posts/${postId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (postRes.ok) {
+          const postData = await postRes.json();
+          const commentsList = document.getElementById(`comments-list-${postId}`);
+          if (commentsList) {
+            commentsList.innerHTML = renderCommentTreeHtml(postData.comments || [], postId, currentUserId, currentUserRole, postData.author_id);
+          }
+        }
       } else {
         const err = await res.json();
         showCustomAlert(err.detail || "Failed to delete comment.");
@@ -1060,7 +1034,7 @@ async function deleteComment(postId, commentId) {
     } catch (err) {
       showCustomAlert("Delete comment failed: " + err.message);
     }
-  });
+  }, "Delete", "btn-danger");
 }
 
 function previewGroupMediaAttachment(input) {

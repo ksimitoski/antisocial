@@ -232,4 +232,74 @@ def test_get_single_post(client):
     assert not_found_res.status_code == 404
 
 
+def test_comment_replies_and_notifications(client):
+    h1, u1_id = create_and_login_user(client, "cmtr_user1", "cmtr_user1@test.com")
+    h2, u2_id = create_and_login_user(client, "cmtr_user2", "cmtr_user2@test.com")
+    h3, u3_id = create_and_login_user(client, "cmtr_user3", "cmtr_user3@test.com")
+
+    # 1. User 1 creates a post
+    p_res = client.post("/api/posts", headers=h1, data={
+        "content": "Post for comment replies test",
+        "visibility": "public"
+    })
+    assert p_res.status_code == 201
+    post_id = p_res.json()["post_id"]
+
+    # 2. User 2 adds a top-level comment (C1)
+    c1_res = client.post(f"/api/posts/{post_id}/comments", headers=h2, json={"content": "Root comment C1"})
+    assert c1_res.status_code == 200
+    c1_data = c1_res.json()
+    c1_id = c1_data["id"]
+    assert c1_data["parent_id"] is None
+
+    # User 1 polls notifications -> receives notification for post comment
+    poll_u1 = client.get("/api/notifications/poll", headers=h1)
+    assert poll_u1.status_code == 200
+    u1_notifs = poll_u1.json()["comments"]
+    assert len(u1_notifs) == 1
+    assert u1_notifs[0]["author_username"] == "cmtr_user2"
+    assert u1_notifs[0]["is_reply"] is False
+
+    # 3. User 3 replies to C1
+    c2_res = client.post(f"/api/posts/{post_id}/comments", headers=h3, json={
+        "content": "Reply to C1",
+        "parent_id": c1_id
+    })
+    assert c2_res.status_code == 200
+    c2_data = c2_res.json()
+    c2_id = c2_data["id"]
+    assert c2_data["parent_id"] == c1_id
+    assert "@cmtr_user2:" in c2_data["content"]
+
+    # User 2 polls notifications -> receives notification for reply to their comment
+    poll_u2 = client.get("/api/notifications/poll", headers=h2)
+    assert poll_u2.status_code == 200
+    u2_notifs = poll_u2.json()["comments"]
+    assert len(u2_notifs) >= 1
+    reply_notif = next(c for c in u2_notifs if c["id"] == c2_id)
+    assert reply_notif["is_reply"] is True
+    assert reply_notif["author_username"] == "cmtr_user3"
+
+    # 4. User 1 replies to User 3's reply (C2)
+    c3_res = client.post(f"/api/posts/{post_id}/comments", headers=h1, json={
+        "content": "Reply to C2",
+        "parent_id": c2_id
+    })
+    assert c3_res.status_code == 200
+    c3_data = c3_res.json()
+    # Direct parent_id refers to C2, while frontend resolves root C1 for single-level rendering
+    assert c3_data["parent_id"] == c2_id
+    assert "@cmtr_user3:" in c3_data["content"]
+
+    # User 3 polls notifications -> receives reply notification from User 1
+    poll_u3 = client.get("/api/notifications/poll", headers=h3)
+    assert poll_u3.status_code == 200
+    u3_notifs = poll_u3.json()["comments"]
+    assert len(u3_notifs) >= 1
+    u3_reply_notif = next(c for c in u3_notifs if c["id"] == c3_data["id"])
+    assert u3_reply_notif["is_reply"] is True
+    assert u3_reply_notif["author_username"] == "cmtr_user1"
+
+
+
 

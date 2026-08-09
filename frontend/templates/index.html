@@ -102,28 +102,7 @@
     const commentsHtml = (post.comments || []).map(c => {
       const cName = c.author_display_name || c.author_username;
       const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
-      const cAvatarHtml = c.author_avatar 
-        ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
-        : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
-      const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
-
-      return `
-        <div class="comment-item" id="comment-${c.id}">
-          <a href="/profile/${c.author_username}" class="comment-avatar-link">
-            ${cAvatarHtml}
-          </a>
-          <div class="comment-body">
-            <div class="comment-text-content">
-              <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-              <span class="comment-text">${formatPostContent(c.content)}</span>
-            </div>
-            <div class="comment-actions-meta">
-              ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    const commentsHtml = renderCommentTreeHtml(post.comments || [], post.id, null, null, post.author_id);
 
     return `
       <div class="post-card" style="margin-bottom: 1.25rem;">
@@ -149,9 +128,9 @@
           </span>
         </div>
 
-        ${commentsHtml ? `
+        ${post.comments && post.comments.length > 0 ? `
           <div class="comments-section" style="margin-top: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
-            <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+            <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 250px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
           </div>
         ` : ''}
       </div>

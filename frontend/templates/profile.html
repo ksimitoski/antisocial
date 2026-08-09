@@ -69,6 +69,7 @@ const profileUsername = "{{ username }}";
 const currentUsername = "{{ current_user.username }}";
 const currentUserId = parseInt("{{ current_user.id if current_user else 0 }}");
 const isModeratorOrAdmin = {{ 'true' if (current_user and current_user.is_moderator) else 'false' }};
+const currentUserRole = isModeratorOrAdmin ? 'moderator' : 'user';
 
 let userPostsSkip = 0;
 const USER_POSTS_LIMIT = 10;
@@ -408,26 +409,7 @@ function renderProfilePostCard(post) {
       </button>
     ` : '';
 
-    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
-
-    return `
-      <div class="comment-item" id="comment-${c.id}">
-        <a href="/profile/${c.author_username}" class="comment-avatar-link">
-          ${cAvatarHtml}
-        </a>
-        <div class="comment-body">
-          <div class="comment-text-content">
-            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>:
-            <span class="comment-text">${formatPostContent(c.content)}</span>
-          </div>
-          <div class="comment-actions-meta">
-            ${dateStr ? `<span class="comment-date">${escapeHtml(dateStr)}</span>` : ''}
-            ${commentDeleteBtn}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  const commentsHtml = renderCommentTreeHtml(post.comments || [], post.id, currentUserId, currentUserRole, post.author_id);
 
   return `
     <div class="post-card" id="post-${post.id}" style="margin-bottom: 1.25rem;">
@@ -463,7 +445,8 @@ function renderProfilePostCard(post) {
       </div>
 
       <div class="comments-section">
-        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 215px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
+        <div id="comment-reply-target-${post.id}" style="display: none; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem; background: var(--input-bg); padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); width: fit-content;"></div>
+        <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 320px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
         <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem; align-items: center;">
           <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitProfileComment(${post.id})">
           <div class="comment-emoji-wrapper">
@@ -511,6 +494,8 @@ async function submitProfileComment(postId) {
   const content = input.value.trim();
   if (!content) return;
 
+  const parentId = input.dataset.parentId ? parseInt(input.dataset.parentId) : null;
+
   try {
     const res = await fetch(`/api/posts/${postId}/comments`, {
       method: 'POST',
@@ -518,30 +503,51 @@ async function submitProfileComment(postId) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ content: content })
+      body: JSON.stringify({ content: content, parent_id: parentId })
     });
     if (res.ok) {
       input.value = '';
-      loadUserPosts(true);
+      clearCommentReplyTarget(postId);
+
+      const postRes = await fetch(`/api/posts/${postId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (postRes.ok) {
+        const postData = await postRes.json();
+        const commentsList = document.getElementById(`comments-list-${postId}`);
+        if (commentsList) {
+          commentsList.innerHTML = renderCommentTreeHtml(postData.comments || [], postId, currentUserId, currentUserRole, postData.author_id);
+        }
+      }
     }
   } catch (err) {
     console.error("Comment submission failed", err);
   }
 }
 
-async function deleteProfileComment(postId, commentId) {
-  if (!confirm("Are you sure you want to delete this comment?")) return;
-  try {
-    const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (res.ok) {
-      loadUserPosts(true);
+async function deleteComment(postId, commentId) {
+  showCustomConfirm("Are you sure you want to delete this comment?", "Delete Comment", async () => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const postRes = await fetch(`/api/posts/${postId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (postRes.ok) {
+          const postData = await postRes.json();
+          const commentsList = document.getElementById(`comments-list-${postId}`);
+          if (commentsList) {
+            commentsList.innerHTML = renderCommentTreeHtml(postData.comments || [], postId, currentUserId, currentUserRole, postData.author_id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Delete comment failed", err);
     }
-  } catch (err) {
-    console.error("Delete comment failed", err);
-  }
+  }, "Delete", "btn-danger");
 }
 
 async function deleteProfilePost(postId) {

@@ -60,20 +60,36 @@ def poll_notifications(
 
     comments_list = []
     if notify_comments:
-        cmts = db.query(models.Comment).join(models.Post).filter(
+        post_cmts = db.query(models.Comment).join(models.Post).filter(
             models.Post.author_id == current_user.id,
             models.Comment.author_id != current_user.id,
             models.Comment.created_at > since_dt
-        ).order_by(models.Comment.created_at.asc()).all()
+        ).all()
 
-        for c in cmts:
+        reply_cmts = db.query(models.Comment).filter(
+            models.Comment.parent_id.isnot(None),
+            models.Comment.author_id != current_user.id,
+            models.Comment.created_at > since_dt
+        ).all()
+        reply_cmts_for_user = [
+            c for c in reply_cmts
+            if c.parent and c.parent.author_id == current_user.id
+        ]
+
+        all_notif_cmts = {c.id: c for c in (post_cmts + reply_cmts_for_user)}.values()
+        sorted_notif_cmts = sorted(all_notif_cmts, key=lambda c: c.created_at or datetime.datetime.min)
+
+        for c in sorted_notif_cmts:
             author = c.author
             author_profile = author.profile if author else None
+            is_reply_to_me = bool(c.parent and c.parent.author_id == current_user.id)
             comments_list.append({
                 "id": c.id,
                 "author_username": author.username if author else "Unknown",
                 "author_display_name": (author_profile.display_name if author_profile and author_profile.display_name else author.username) if author else "Unknown",
                 "post_id": c.post_id,
+                "parent_id": c.parent_id,
+                "is_reply": is_reply_to_me,
                 "content": c.content,
                 "created_at": c.created_at.isoformat()
             })
@@ -187,21 +203,36 @@ def process_email_notification_digests(db: Session, force: bool = False) -> dict
                     "content": m.content
                 })
 
-        # Gather post comments
         comments_list = []
         if email_comments:
-            cmts = db.query(models.Comment).join(models.Post).filter(
+            post_cmts = db.query(models.Comment).join(models.Post).filter(
                 models.Post.author_id == u.id,
                 models.Comment.author_id != u.id,
                 models.Comment.created_at > since_dt
-            ).order_by(models.Comment.created_at.asc()).all()
+            ).all()
 
-            for c in cmts:
+            reply_cmts = db.query(models.Comment).filter(
+                models.Comment.parent_id.isnot(None),
+                models.Comment.author_id != u.id,
+                models.Comment.created_at > since_dt
+            ).all()
+            reply_cmts_for_user = [
+                c for c in reply_cmts
+                if c.parent and c.parent.author_id == u.id
+            ]
+
+            all_notif_cmts = {c.id: c for c in (post_cmts + reply_cmts_for_user)}.values()
+            sorted_notif_cmts = sorted(all_notif_cmts, key=lambda c: c.created_at or datetime.datetime.min)
+
+            for c in sorted_notif_cmts:
                 author = c.author
                 author_profile = author.profile if author else None
+                is_reply_to_me = bool(c.parent and c.parent.author_id == u.id)
                 comments_list.append({
                     "id": c.id,
                     "post_id": c.post_id,
+                    "parent_id": c.parent_id,
+                    "is_reply": is_reply_to_me,
                     "author_username": author.username if author else "Unknown",
                     "author_display_name": (author_profile.display_name if author_profile and author_profile.display_name else author.username) if author else "Unknown",
                     "content": c.content

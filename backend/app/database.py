@@ -115,6 +115,12 @@ def run_db_migrations(engine_obj):
                 if "is_invite_only" not in group_columns:
                     conn.execute(text("ALTER TABLE groups ADD COLUMN is_invite_only BOOLEAN DEFAULT 0"))
 
+        if "comments" in inspector.get_table_names():
+            comment_columns = [c["name"] for c in inspector.get_columns("comments")]
+            with engine_obj.begin() as conn:
+                if "parent_id" not in comment_columns:
+                    conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE"))
+
     except Exception as e:
         print(f"Database migration notice: {e}", flush=True)
 

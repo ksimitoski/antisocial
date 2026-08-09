@@ -183,12 +183,17 @@ function triggerInAppToastNotifications(data) {
 
     comments.forEach(c => {
       const authorName = c.author_display_name || c.author_username;
-      let bodyText = `${authorName} commented on your post`;
+      const isReply = c.is_reply || false;
+      let bodyText = isReply ? `${authorName} replied to your comment` : `${authorName} commented on your post`;
       if (obscure) {
-        bodyText = `${authorName} commented on your post (content hidden for privacy)`;
+        bodyText = isReply
+          ? `${authorName} replied to your comment (content hidden for privacy)`
+          : `${authorName} commented on your post (content hidden for privacy)`;
       } else if (c.content) {
         const snippet = c.content.length > 60 ? c.content.substring(0, 57) + '...' : c.content;
-        bodyText = `${authorName} commented: "${snippet}"`;
+        bodyText = isReply
+          ? `${authorName} replied: "${snippet}"`
+          : `${authorName} commented: "${snippet}"`;
       }
 
       showToast(`💬 ${bodyText}`, 'info', 6000);
@@ -1438,5 +1443,157 @@ document.addEventListener('click', (e) => {
     });
   }
 });
+
+// Comment Tree & Replies Helpers
+function formatMentions(text) {
+  if (!text) return '';
+  return text.replace(/@([a-zA-Z0-9_]+):?/g, (match, username) => {
+    const hasColon = match.endsWith(':');
+    return `<a href="/profile/${username}" class="comment-mention-tag">@${username}${hasColon ? ':' : ''}</a>`;
+  });
+}
+
+function renderCommentTreeHtml(comments, postId, currentUserId, currentUserRole, postAuthorId) {
+  if (!comments || comments.length === 0) {
+    return `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 0.25rem 0;" id="no-comments-msg-${postId}">No comments yet. Be the first to comment!</div>`;
+  }
+
+  const commentMap = {};
+  comments.forEach(c => { commentMap[c.id] = c; });
+
+  const topLevel = [];
+  const repliesMap = {};
+
+  comments.forEach(c => {
+    if (c.parent_id) {
+      // Find root parent ID for single-level indentation
+      let curr = c;
+      while (curr.parent_id && commentMap[curr.parent_id]) {
+        curr = commentMap[curr.parent_id];
+      }
+      const rootId = curr.id !== c.id ? curr.id : c.parent_id;
+      if (!repliesMap[rootId]) repliesMap[rootId] = [];
+      repliesMap[rootId].push(c);
+    } else {
+      topLevel.push(c);
+    }
+  });
+
+  topLevel.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+  function renderSingleComment(c, isChild = false) {
+    const cName = c.author_display_name || c.author_username;
+    const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
+    const cAvatarHtml = c.author_avatar 
+      ? `<img src="${c.author_avatar}" style="width:26px; height:26px; border-radius:50%; object-fit:cover;" />`
+      : `<div class="user-avatar" style="width:26px; height:26px; font-size:0.75rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${cInitial}</div>`;
+
+    const isModOrAdmin = currentUserRole === 'admin' || currentUserRole === 'moderator';
+    const canDelete = currentUserId && (currentUserId === c.author_id || currentUserId === postAuthorId || isModOrAdmin);
+    const deleteBtn = canDelete 
+      ? `<button onclick="deleteComment(${postId}, ${c.id})" class="comment-delete-btn" title="Delete Comment"><span class="delete-icon">🗑️</span></button>`
+      : '';
+
+    const replyBtn = currentUserId 
+      ? `<button onclick="setCommentReplyTarget(${postId}, ${c.id}, '${escapeHtml(c.author_username)}')" class="comment-reply-btn">Reply</button>`
+      : '';
+
+    const dateStr = c.created_at ? formatDateTime(c.created_at) : '';
+    const contentHtml = formatMentions(formatPostContent(c.content || ''));
+
+    return `
+      <div class="comment-item" id="comment-${c.id}">
+        <a href="/profile/${c.author_username}" class="comment-avatar-link">
+          ${cAvatarHtml}
+        </a>
+        <div class="comment-body">
+          <div class="comment-text-content">
+            <a href="/profile/${c.author_username}" class="comment-author">${escapeHtml(cName)}</a>
+            <span class="comment-text">${contentHtml}</span>
+          </div>
+          <div class="comment-actions-meta">
+            <span class="comment-date">${dateStr}</span>
+            ${replyBtn}
+            ${deleteBtn}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  let html = '';
+  topLevel.forEach(parentCmt => {
+    const childReplies = repliesMap[parentCmt.id] || [];
+    childReplies.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+    html += `<div class="comment-group" id="comment-group-${parentCmt.id}">`;
+    html += renderSingleComment(parentCmt, false);
+
+    if (childReplies.length > 0) {
+      const replyCount = childReplies.length;
+      html += `
+        <button type="button" class="toggle-replies-btn" id="toggle-replies-btn-${parentCmt.id}" onclick="toggleCommentReplies(${parentCmt.id})">
+          💬 ${replyCount} ${replyCount === 1 ? 'Reply' : 'Replies'} ▲
+        </button>
+        <div class="comment-replies-container" id="replies-container-${parentCmt.id}" style="display: block;">
+      `;
+      childReplies.forEach(childCmt => {
+        html += renderSingleComment(childCmt, true);
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  return html;
+}
+
+function toggleCommentReplies(parentId) {
+  const container = document.getElementById(`replies-container-${parentId}`);
+  const btn = document.getElementById(`toggle-replies-btn-${parentId}`);
+  if (!container || !btn) return;
+
+  const isHidden = container.style.display === 'none';
+  if (isHidden) {
+    container.style.display = 'block';
+    const count = container.querySelectorAll('.comment-item').length;
+    btn.innerHTML = `💬 ${count} ${count === 1 ? 'Reply' : 'Replies'} ▲`;
+  } else {
+    container.style.display = 'none';
+    const count = container.querySelectorAll('.comment-item').length;
+    btn.innerHTML = `💬 ${count} ${count === 1 ? 'Reply' : 'Replies'} ▼`;
+  }
+}
+
+function setCommentReplyTarget(postId, commentId, username) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  if (!input) return;
+
+  input.dataset.parentId = commentId;
+  const targetTag = document.getElementById(`comment-reply-target-${postId}`);
+  if (targetTag) {
+    targetTag.innerHTML = `Replying to <strong>@${escapeHtml(username)}</strong> <button type="button" onclick="clearCommentReplyTarget(${postId})" style="background:none; border:none; color:var(--primary-red); cursor:pointer; font-weight:bold; padding:0 0.2rem;">✕</button>`;
+    targetTag.style.display = 'inline-flex';
+  }
+
+  const prefix = `@${username}: `;
+  if (!input.value.startsWith(prefix)) {
+    input.value = prefix + input.value;
+  }
+  input.focus();
+}
+
+function clearCommentReplyTarget(postId) {
+  const input = document.getElementById(`comment-input-${postId}`);
+  if (input) {
+    delete input.dataset.parentId;
+  }
+  const targetTag = document.getElementById(`comment-reply-target-${postId}`);
+  if (targetTag) {
+    targetTag.style.display = 'none';
+    targetTag.innerHTML = '';
+  }
+}
 
 

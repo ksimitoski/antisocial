@@ -117,6 +117,7 @@ class PostUpdate(BaseModel):
 
 class CommentCreate(BaseModel):
     content: str
+    parent_id: Optional[int] = None
 
 class GroupCreate(BaseModel):
     name: str
