@@ -357,6 +357,8 @@ textarea.form-control {
   cursor: pointer;
   transition: var(--transition);
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-primary {
@@ -395,6 +397,13 @@ textarea.form-control {
 .btn-sm {
   padding: 0.4rem 0.8rem;
   font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .btn-sm {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.8rem;
+  }
 }
 
 /* Alerts & Banners */

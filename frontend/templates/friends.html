@@ -135,17 +135,17 @@
 
       return `
       <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; margin-bottom:0.5rem; gap:0.75rem;">
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-          <a href="/profile/${f.username}" class="avatar-container">
+        <div style="display:flex; align-items:center; gap:0.75rem; min-width:0; overflow:hidden;">
+          <a href="/profile/${f.username}" class="avatar-container" style="flex-shrink:0;">
             ${avatarHtml}
             <span class="status-indicator ${statusDotClass}" data-username="${f.username}" title="Status: ${statusVal}"></span>
           </a>
-          <div>
-            <a href="/profile/${f.username}" class="author-name" style="font-size:0.95rem;">${escapeHtml(displayName)}</a>
-            <div style="font-size:0.8rem; color:var(--text-muted);">@${escapeHtml(f.username)} &bull; <span class="status-text-badge" data-username="${f.username}">${statusBadgeText}</span></div>
+          <div style="min-width:0; overflow:hidden;">
+            <a href="/profile/${f.username}" class="author-name" style="font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">${escapeHtml(displayName)}</a>
+            <div style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@${escapeHtml(f.username)} &bull; <span class="status-text-badge" data-username="${f.username}">${statusBadgeText}</span></div>
           </div>
         </div>
-        <a href="/profile/${f.username}" class="btn btn-secondary btn-sm">View Profile</a>
+        <a href="/profile/${f.username}" class="btn btn-secondary btn-sm" style="flex-shrink:0; white-space:nowrap;">View Profile</a>
       </div>
     `;
     }).join('');
