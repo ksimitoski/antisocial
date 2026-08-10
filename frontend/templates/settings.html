@@ -349,17 +349,20 @@
     <form id="change-password-form">
       <div class="form-group">
         <label for="current_password">Current Password</label>
-        <input type="password" id="current_password" name="current_password" class="form-control" required placeholder="Enter current password">
+        <input type="password" id="current_password" name="current_password" class="form-control" required maxlength="100" placeholder="Enter current password" oninput="updateInputCharCounter(this, 'settings-curr-pwd-counter', 100)">
+        <span class="char-counter" id="settings-curr-pwd-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
       <div class="form-group">
         <label for="new_password">New Password</label>
-        <input type="password" id="new_password" name="new_password" class="form-control" required placeholder="Enter new password (min. 6 chars)">
+        <input type="password" id="new_password" name="new_password" class="form-control" required maxlength="100" placeholder="Enter new password (min. 6 chars)" oninput="updateInputCharCounter(this, 'settings-new-pwd-counter', 100)">
+        <span class="char-counter" id="settings-new-pwd-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
       <div class="form-group">
         <label for="confirm_password">Confirm New Password</label>
-        <input type="password" id="confirm_password" name="confirm_password" class="form-control" required placeholder="Re-enter new password">
+        <input type="password" id="confirm_password" name="confirm_password" class="form-control" required maxlength="100" placeholder="Re-enter new password" oninput="updateInputCharCounter(this, 'settings-confirm-pwd-counter', 100)">
+        <span class="char-counter" id="settings-confirm-pwd-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
       <button type="submit" class="btn btn-secondary">Update Password</button>

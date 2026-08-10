@@ -27,6 +27,12 @@ async def create_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    if content and len(content) > 10000:
+        raise HTTPException(
+            status_code=400,
+            detail="Post content must be 10,000 characters or less"
+        )
+
     clean_content = content.strip() if content and content.strip() else ""
 
     parsed_group_id = None
@@ -352,6 +358,8 @@ def update_post(
         raise HTTPException(status_code=403, detail="Only the user who created this post can edit it")
 
     if post_data.content is not None:
+        if len(post_data.content) > 10000:
+            raise HTTPException(status_code=400, detail="Post content must be 10,000 characters or less")
         clean_content = post_data.content.strip()
         if not clean_content and not post.media_url:
             raise HTTPException(status_code=400, detail="Post content cannot be empty")
@@ -425,6 +433,9 @@ def add_comment(
         raise HTTPException(status_code=403, detail="Not authorized to interact with this post")
 
     effective_parent_id = None
+    if comment_data.content and len(comment_data.content) > 280:
+        raise HTTPException(status_code=400, detail="Comment must be 280 characters or less")
+
     content = (comment_data.content or "").strip()
 
     if comment_data.parent_id:
@@ -443,6 +454,9 @@ def add_comment(
         if parent_comment.parent_id or not content.lower().startswith(mention_prefix.lower()):
             if not content.lower().startswith(mention_prefix.lower()) and not content.lower().startswith(f"@{parent_author_username.lower()} "):
                 content = f"{mention_prefix} {content}"
+
+    if len(content) > 280:
+        raise HTTPException(status_code=400, detail="Comment must be 280 characters or less")
 
     comment = models.Comment(
         post_id=post_id,

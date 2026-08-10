@@ -300,6 +300,77 @@ def test_comment_replies_and_notifications(client):
     assert u3_reply_notif["is_reply"] is True
     assert u3_reply_notif["author_username"] == "cmtr_user1"
 
+def test_character_limits_posts_comments_passwords(client):
+    # 1. Test Password Length Limit (max 100 chars)
+    long_pwd = "a" * 101
+    valid_pwd = "a" * 100
+
+    reg_fail = client.post("/api/auth/register", json={
+        "username": "pwdlimituser",
+        "email": "pwdlimituser@test.com",
+        "password": long_pwd
+    })
+    assert reg_fail.status_code in [400, 422]
+
+    reg_ok = client.post("/api/auth/register", json={
+        "username": "pwdlimituser",
+        "email": "pwdlimituser@test.com",
+        "password": valid_pwd
+    })
+    assert reg_ok.status_code == 201
+
+    token = reg_ok.json()["token"]
+    client.get(f"/api/auth/confirm?token={token}")
+    login = client.post("/api/auth/login", json={
+        "username_or_email": "pwdlimituser",
+        "password": valid_pwd
+    })
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # 2. Test Post Content Length Limit (max 10,000 chars)
+    over_post_content = "x" * 10001
+    valid_post_content = "x" * 10000
+
+    post_fail = client.post("/api/posts", headers=headers, data={
+        "content": over_post_content,
+        "visibility": "public"
+    })
+    assert post_fail.status_code in [400, 422]
+
+    post_ok = client.post("/api/posts", headers=headers, data={
+        "content": valid_post_content,
+        "visibility": "public"
+    })
+    assert post_ok.status_code == 201
+    post_id = post_ok.json()["post_id"]
+
+    # Test update post length limit
+    update_fail = client.put(f"/api/posts/{post_id}", headers=headers, json={
+        "content": over_post_content
+    })
+    assert update_fail.status_code in [400, 422]
+
+    update_ok = client.put(f"/api/posts/{post_id}", headers=headers, json={
+        "content": "y" * 10000
+    })
+    assert update_ok.status_code == 200
+
+    # 3. Test Comment Content Length Limit (max 280 chars)
+    over_comment_content = "c" * 281
+    valid_comment_content = "c" * 280
+
+    cmt_fail = client.post(f"/api/posts/{post_id}/comments", headers=headers, json={
+        "content": over_comment_content
+    })
+    assert cmt_fail.status_code in [400, 422]
+
+    cmt_ok = client.post(f"/api/posts/{post_id}/comments", headers=headers, json={
+        "content": valid_comment_content
+    })
+    assert cmt_ok.status_code == 200
+
+
 
 
 

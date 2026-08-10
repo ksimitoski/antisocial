@@ -430,7 +430,10 @@ function renderPostCard(post) {
         <div id="comment-reply-target-${post.id}" style="display: none; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem; background: var(--input-bg); padding: 0.2rem 0.6rem; border-radius: var(--radius-sm); width: fit-content;"></div>
         <div id="comments-list-${post.id}" class="comments-scroll-frame" style="max-height: 320px; overflow-y: auto; padding-right: 0.25rem;">${commentsHtml}</div>
         <div style="display: flex; gap: 0.5rem; margin-top: 0.6rem; align-items: center;">
-          <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;" placeholder="Write a comment..." autocapitalize="sentences" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+          <div style="flex: 1; position: relative;">
+            <input type="text" id="comment-input-${post.id}" class="form-control" style="padding: 0.4rem 0.75rem; font-size: 0.85rem; padding-right: 5rem;" placeholder="Write a comment..." maxlength="280" autocapitalize="sentences" oninput="updateCommentCharCounter(this, ${post.id})" onkeypress="if(event.key==='Enter') submitComment(${post.id})">
+            <span class="char-counter" id="comment-counter-${post.id}" style="position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); margin: 0; font-size: 0.72rem; pointer-events: none; opacity: 0.8;">0 / 280</span>
+          </div>
           <div class="comment-emoji-wrapper">
             <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCommentEmojiPicker(${post.id}, this)" title="Add Emoji" style="padding: 0.4rem 0.65rem;">😀</button>
             <div class="comment-emoji-menu" id="comment-emoji-menu-${post.id}">
@@ -489,6 +492,7 @@ async function submitComment(postId) {
 
     if (res.ok) {
       input.value = '';
+      updateCommentCharCounter(input, postId);
       clearCommentReplyTarget(postId);
 
       const postRes = await fetch(`/api/posts/${postId}`, {
@@ -536,7 +540,7 @@ function enablePostEdit(postId) {
   if (!contentEl) return;
   const rawText = contentEl.getAttribute('data-raw-content') || contentEl.innerText;
 
-  contentEl.innerHTML = `<div id="post-edit-box-${postId}" style="margin: 0.2rem 0;"><textarea id="post-edit-input-${postId}" class="form-control" rows="3" style="width: 100%; margin-top: 0.2rem; margin-bottom: 0.35rem;">${escapeHtml(rawText)}</textarea><div style="display: flex; gap: 0.5rem; justify-content: flex-end;"><button type="button" onclick="cancelPostEdit(${postId})" class="btn btn-secondary btn-sm">Cancel</button><button type="button" onclick="submitPostEdit(${postId})" class="btn btn-primary btn-sm">Save Edit</button></div></div>`;
+  contentEl.innerHTML = `<div id="post-edit-box-${postId}" style="margin: 0.2rem 0;"><textarea id="post-edit-input-${postId}" class="form-control" rows="3" style="width: 100%; margin-top: 0.2rem; margin-bottom: 0.35rem;" maxlength="10000" onkeydown="if((event.ctrlKey || event.metaKey) && event.key === 'Enter') submitPostEdit(${postId})">${escapeHtml(rawText)}</textarea><div style="display: flex; gap: 0.5rem; justify-content: flex-end;"><button type="button" onclick="cancelPostEdit(${postId})" class="btn btn-secondary btn-sm">Cancel</button><button type="button" onclick="submitPostEdit(${postId})" class="btn btn-primary btn-sm">Save Edit</button></div></div>`;
 }
 
 async function submitPostEdit(postId) {

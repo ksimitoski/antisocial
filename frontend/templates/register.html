@@ -23,12 +23,14 @@
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" class="form-control" required placeholder="Choose a strong password">
+        <input type="password" id="password" name="password" class="form-control" required maxlength="100" placeholder="Choose a strong password" oninput="updateInputCharCounter(this, 'password-counter', 100)">
+        <span class="char-counter" id="password-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
       <div class="form-group">
         <label for="password_confirm">Confirm Password</label>
-        <input type="password" id="password_confirm" name="password_confirm" class="form-control" required placeholder="Re-enter your password">
+        <input type="password" id="password_confirm" name="password_confirm" class="form-control" required maxlength="100" placeholder="Re-enter your password" oninput="updateInputCharCounter(this, 'password-confirm-counter', 100)">
+        <span class="char-counter" id="password-confirm-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
       <div class="form-group">

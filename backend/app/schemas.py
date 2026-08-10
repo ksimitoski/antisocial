@@ -23,11 +23,25 @@ class UserRegister(BaseModel):
             raise ValueError("Username must start with a letter and contain only alphanumeric characters and underscores")
         return v
 
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if v and len(v) > 100:
+            raise ValueError("Password must be 100 characters or less")
+        return v
+
 class UserLogin(BaseModel):
     username_or_email: str
     password: str
     totp_code: Optional[str] = None
     remember_me: Optional[bool] = False
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if v and len(v) > 100:
+            raise ValueError("Password must be 100 characters or less")
+        return v
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -42,6 +56,13 @@ class PasswordResetConfirm(BaseModel):
     code: Optional[str] = None
     password: str
     password_confirm: str
+
+    @field_validator('password', 'password_confirm')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if v and len(v) > 100:
+            raise ValueError("Password must be 100 characters or less")
+        return v
 
 class Token(BaseModel):
     access_token: str
@@ -119,13 +140,34 @@ class PostCreate(BaseModel):
     group_id: Optional[int] = None
     expires_in: Optional[str] = None
 
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 10000:
+            raise ValueError("Post content must be 10,000 characters or less")
+        return v
+
 class PostUpdate(BaseModel):
     content: Optional[str] = None
     visibility: Optional[str] = None
 
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 10000:
+            raise ValueError("Post content must be 10,000 characters or less")
+        return v
+
 class CommentCreate(BaseModel):
     content: str
     parent_id: Optional[int] = None
+
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        if v is not None and len(v) > 280:
+            raise ValueError("Comment must be 280 characters or less")
+        return v
 
 class GroupCreate(BaseModel):
     name: str
@@ -148,6 +190,13 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator('current_password', 'new_password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if v and len(v) > 100:
+            raise ValueError("Password must be 100 characters or less")
+        return v
+
 class RoleUpdate(BaseModel):
     role: str  # 'user', 'moderator', 'admin'
 
@@ -163,4 +212,12 @@ class PostPrivacyUpdate(BaseModel):
 
 class UserDelete(BaseModel):
     password: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 100:
+            raise ValueError("Password must be 100 characters or less")
+        return v
+
 

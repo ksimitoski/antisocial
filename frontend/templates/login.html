@@ -18,7 +18,8 @@
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" class="form-control" required placeholder="Enter password">
+        <input type="password" id="password" name="password" class="form-control" required maxlength="100" placeholder="Enter password" oninput="updateInputCharCounter(this, 'login-password-counter', 100)">
+        <span class="char-counter" id="login-password-counter" style="margin-top: 0.25rem; font-size: 0.78rem; text-align: right; display: block;">0 / 100</span>
       </div>
 
 

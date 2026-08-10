@@ -1062,6 +1062,7 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
         </div>
       </div>
       <div class="wysiwyg-editor" contenteditable="true" data-placeholder="${escapeHtmlAttr(placeholderText)}"></div>
+      <div class="char-counter wysiwyg-char-counter" style="text-align: right; margin-top: 0.25rem; font-size: 0.78rem;">0 / 10,000</div>
       <input type="hidden" class="wysiwyg-hidden-input" name="content">
     </div>
   `;
@@ -1069,6 +1070,7 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
   const toolbar = wrapper.querySelector('.wysiwyg-toolbar');
   const editor = wrapper.querySelector('.wysiwyg-editor');
   const hiddenInput = wrapper.querySelector('.wysiwyg-hidden-input');
+  const wysiwygCounter = wrapper.querySelector('.wysiwyg-char-counter');
 
   function syncContent() {
     let html = editor.innerHTML;
@@ -1076,10 +1078,33 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
       html = '';
     }
     hiddenInput.value = html;
+
+    const rawText = editor.innerText || editor.textContent || '';
+    const len = rawText.length;
+    if (wysiwygCounter) {
+      wysiwygCounter.textContent = `${len.toLocaleString()} / 10,000`;
+      wysiwygCounter.classList.remove('warning', 'exceeded');
+      if (len > 10000) wysiwygCounter.classList.add('exceeded');
+      else if (len >= 9000) wysiwygCounter.classList.add('warning');
+    }
   }
 
   editor.addEventListener('input', syncContent);
   editor.addEventListener('blur', syncContent);
+  editor.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      syncContent();
+      const form = wrapper.closest('form');
+      if (form) {
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+      }
+    }
+  });
 
   toolbar.querySelectorAll('.wysiwyg-btn[data-cmd]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1581,6 +1606,7 @@ function setCommentReplyTarget(postId, commentId, username) {
   if (!input.value.startsWith(prefix)) {
     input.value = prefix + input.value;
   }
+  updateCommentCharCounter(input, postId);
   input.focus();
 }
 
@@ -1595,5 +1621,24 @@ function clearCommentReplyTarget(postId) {
     targetTag.innerHTML = '';
   }
 }
+
+function updateInputCharCounter(inputEl, counterId, maxLen) {
+  if (!inputEl) return;
+  const counterEl = document.getElementById(counterId);
+  if (!counterEl) return;
+  const len = inputEl.value ? inputEl.value.length : 0;
+  counterEl.textContent = `${len.toLocaleString()} / ${maxLen.toLocaleString()}`;
+  counterEl.classList.remove('warning', 'exceeded');
+  if (len >= maxLen) {
+    counterEl.classList.add('exceeded');
+  } else if (len >= maxLen * 0.9) {
+    counterEl.classList.add('warning');
+  }
+}
+
+function updateCommentCharCounter(inputEl, postId) {
+  updateInputCharCounter(inputEl, `comment-counter-${postId}`, 280);
+}
+
 
 

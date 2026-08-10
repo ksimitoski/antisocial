@@ -40,6 +40,12 @@ def register(user_data: schemas.UserRegister, response: Response, db: Session = 
                 detail=captcha_msg
             )
 
+    if user_data.password and len(user_data.password) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be 100 characters or less"
+        )
+
     if user_data.password_confirm is not None and user_data.password != user_data.password_confirm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

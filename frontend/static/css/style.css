@@ -1939,3 +1939,21 @@ body.messages-page .main-container {
     z-index: 10001 !important;
   }
 }
+
+/* Character Counter Indicator */
+.char-counter {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.char-counter.warning {
+  color: #f59e0b !important;
+}
+
+.char-counter.exceeded {
+  color: #ef4444 !important;
+  font-weight: 700 !important;
+}
