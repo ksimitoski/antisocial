@@ -99,3 +99,94 @@ def verify_and_consume_backup_code(hashed_codes_str: str, code: str) -> Tuple[bo
         return True, ",".join(hashes)
 
     return False, hashed_codes_str
+
+
+# CAPTCHA Security System
+
+from PIL import ImageDraw, ImageFont
+
+def generate_captcha_challenge(expires_in: int = 300) -> Tuple[str, str]:
+    """Generates an image CAPTCHA challenge and returns (captcha_id_token, base64_image_data)."""
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    text = "".join(secrets.choice(chars) for _ in range(5))
+
+    width, height = 240, 70
+    image = Image.new('RGB', (width, height), color=(245, 247, 250))
+    draw = ImageDraw.Draw(image)
+
+    # Draw subtle random noise lines
+    for _ in range(4):
+        x1 = secrets.randbelow(width)
+        y1 = secrets.randbelow(height)
+        x2 = secrets.randbelow(width)
+        y2 = secrets.randbelow(height)
+        draw.line([(x1, y1), (x2, y2)], fill=(180, 190, 200), width=1)
+
+    # Draw subtle background dots
+    for _ in range(80):
+        x = secrets.randbelow(width)
+        y = secrets.randbelow(height)
+        draw.point((x, y), fill=(160, 170, 180))
+
+    # Render characters with improved spacing and boldness
+    font = ImageFont.load_default()
+    char_width = width // (len(text) + 1)
+    for i, char in enumerate(text):
+        x = (i + 1) * char_width - 6 + secrets.randbelow(4) - 2
+        y = (height // 2) - 10 + secrets.randbelow(6) - 3
+        color = (secrets.randbelow(60), secrets.randbelow(60), secrets.randbelow(60))
+        # Multi-pass text rendering for thicker/larger crisp letters
+        for dx in range(3):
+            for dy in range(3):
+                draw.text((x + dx, y + dy), char, fill=color, font=font)
+
+    buf = io.BytesIO()
+    image.save(buf, format='PNG')
+    image_b64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+    # Sign token
+    expires_at = int(time.time()) + expires_in
+    secret_key = os.environ.get("SECRET_KEY", "antisocial_super_secret_jwt_and_session_key_2026_red").encode()
+    answer_hash = hashlib.sha256(text.lower().encode()).hexdigest()
+    token_payload = f"{expires_at}:{answer_hash}"
+    sig = hmac.new(secret_key, token_payload.encode(), hashlib.sha256).hexdigest()
+    captcha_id = base64.urlsafe_b64encode(f"{token_payload}:{sig}".encode()).decode()
+
+    return captcha_id, image_b64
+
+
+def verify_captcha_token(captcha_id: str, user_answer: str) -> Tuple[bool, str]:
+    """Verify CAPTCHA ID token against user provided answer."""
+    if not captcha_id or not user_answer or not user_answer.strip():
+        return False, "CAPTCHA code is required"
+
+    try:
+        decoded = base64.urlsafe_b64decode(captcha_id.encode()).decode()
+        parts = decoded.split(":")
+        if len(parts) != 3:
+            return False, "Invalid CAPTCHA token format"
+
+        expires_at_str, answer_hash, sig = parts
+        expires_at = int(expires_at_str)
+
+        # Check signature
+        secret_key = os.environ.get("SECRET_KEY", "antisocial_super_secret_jwt_and_session_key_2026_red").encode()
+        token_payload = f"{expires_at_str}:{answer_hash}"
+        expected_sig = hmac.new(secret_key, token_payload.encode(), hashlib.sha256).hexdigest()
+
+        if not hmac.compare_digest(sig, expected_sig):
+            return False, "Invalid CAPTCHA token signature"
+
+        # Check expiration
+        if time.time() > expires_at:
+            return False, "CAPTCHA has expired, please refresh"
+
+        # Check answer
+        given_hash = hashlib.sha256(user_answer.strip().lower().encode()).hexdigest()
+        if not hmac.compare_digest(given_hash, answer_hash):
+            return False, "Incorrect CAPTCHA solution"
+
+        return True, "OK"
+    except Exception:
+        return False, "Invalid CAPTCHA token"
+

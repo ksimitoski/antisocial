@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import requests
 
@@ -211,6 +212,19 @@ def verify_2fa():
     return render_template("verify_2fa.html")
 
 
+def fetch_captcha():
+    try:
+        res = requests.get(f"{BACKEND_URL}/api/auth/captcha", timeout=3)
+        if res.status_code == 200:
+            return res.json()
+    except Exception:
+        pass
+    return {"captcha_id": "", "captcha_image": ""}
+
+@app.route("/api-proxy/captcha")
+def proxy_captcha():
+    return jsonify(fetch_captcha())
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -218,17 +232,35 @@ def register():
         email = request.form.get("email", "").strip()
         password = request.form.get("password")
         password_confirm = request.form.get("password_confirm")
+        captcha_id = request.form.get("captcha_id")
+        captcha_answer = request.form.get("captcha_answer", "").strip()
+
+        captcha_data = fetch_captcha()
+
+        if len(username) > 40:
+            flash("Username must be at most 40 characters long.", "danger")
+            return render_template("register.html", username=username, email=email, captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
+
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', username):
+            flash("Username must start with a letter and contain only alphanumeric characters and underscores.", "danger")
+            return render_template("register.html", username=username, email=email, captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
 
         if password != password_confirm:
             flash("Passwords do not match. Please ensure both password fields match.", "danger")
-            return render_template("register.html", username=username, email=email)
+            return render_template("register.html", username=username, email=email, captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
+
+        if not captcha_answer:
+            flash("Please complete the CAPTCHA code.", "danger")
+            return render_template("register.html", username=username, email=email, captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
 
         try:
             res = requests.post(f"{BACKEND_URL}/api/auth/register", json={
                 "username": username,
                 "email": email,
                 "password": password,
-                "password_confirm": password_confirm
+                "password_confirm": password_confirm,
+                "captcha_id": captcha_id,
+                "captcha_answer": captcha_answer
             }, headers=get_auth_headers())
             if res.status_code == 201:
                 data = res.json()
@@ -236,13 +268,16 @@ def register():
                 return redirect(url_for("login"))
             else:
                 detail = res.json().get("detail", "Registration failed")
+                if isinstance(detail, list) and len(detail) > 0:
+                    detail = detail[0].get("msg", "Registration failed")
                 flash(detail, "danger")
         except Exception as e:
             flash(f"Connection error to API: {str(e)}", "danger")
 
-        return render_template("register.html", username=username, email=email)
+        return render_template("register.html", username=username, email=email, captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
 
-    return render_template("register.html")
+    captcha_data = fetch_captcha()
+    return render_template("register.html", captcha_id=captcha_data.get("captcha_id"), captcha_image=captcha_data.get("captcha_image"))
 
 @app.route("/confirm-email")
 def confirm_email():

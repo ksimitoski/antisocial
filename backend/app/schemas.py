@@ -1,4 +1,5 @@
 import datetime
+import re
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from typing import Optional, List
 
@@ -7,12 +8,19 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     password_confirm: Optional[str] = None
+    captcha_id: Optional[str] = None
+    captcha_answer: Optional[str] = None
 
     @field_validator('username')
     @classmethod
-    def lowercase_username(cls, v: str) -> str:
-        if v:
-            return v.lower().strip()
+    def validate_and_lowercase_username(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Username is required")
+        v = v.strip().lower()
+        if len(v) > 40:
+            raise ValueError("Username must be at most 40 characters long")
+        if not re.match(r'^[a-z][a-z0-9_]*$', v):
+            raise ValueError("Username must start with a letter and contain only alphanumeric characters and underscores")
         return v
 
 class UserLogin(BaseModel):

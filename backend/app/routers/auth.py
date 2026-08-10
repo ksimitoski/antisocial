@@ -20,8 +20,26 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
+@router.get("/captcha")
+def get_captcha():
+    captcha_id, captcha_image = security_utils.generate_captcha_challenge()
+    return {
+        "captcha_id": captcha_id,
+        "captcha_image": captcha_image
+    }
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: schemas.UserRegister, response: Response, db: Session = Depends(get_db)):
+    # Verify CAPTCHA unless explicitly disabled for test fixtures
+    if os.environ.get("DISABLE_CAPTCHA") != "1":
+        is_valid, captcha_msg = security_utils.verify_captcha_token(user_data.captcha_id, user_data.captcha_answer)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=captcha_msg
+            )
+
     if user_data.password_confirm is not None and user_data.password != user_data.password_confirm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

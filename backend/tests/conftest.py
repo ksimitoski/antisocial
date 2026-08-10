@@ -9,6 +9,7 @@ import tempfile
 test_upload_dir = tempfile.mkdtemp(prefix="antisocial_test_uploads_")
 os.environ["UPLOAD_DIR"] = test_upload_dir
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["DISABLE_CAPTCHA"] = "1"
 
 from app.database import Base, get_db
 from app.main import app, init_system_admin
