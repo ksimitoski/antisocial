@@ -128,17 +128,52 @@ def generate_captcha_challenge(expires_in: int = 300) -> Tuple[str, str]:
         y = secrets.randbelow(height)
         draw.point((x, y), fill=(160, 170, 180))
 
-    # Render characters with improved spacing and boldness
-    font = ImageFont.load_default()
+    # Render characters with improved spacing and scalable font
+    font = None
+    font_size = 19
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ]
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, font_size)
+                break
+            except Exception:
+                pass
+
+    if font is None:
+        try:
+            font = ImageFont.load_default(size=font_size)
+        except TypeError:
+            font = ImageFont.load_default()
+
+    is_truetype = font is not None and hasattr(font, "getbbox") and font.__class__.__name__ != "ImageFont"
+
     char_width = width // (len(text) + 1)
     for i, char in enumerate(text):
-        x = (i + 1) * char_width - 6 + secrets.randbelow(4) - 2
-        y = (height // 2) - 10 + secrets.randbelow(6) - 3
+        x_base = (i + 1) * char_width + secrets.randbelow(6) - 3
+        if is_truetype:
+            bbox = font.getbbox(char)
+            cw = bbox[2] - bbox[0]
+            ch = bbox[3] - bbox[1]
+            x = x_base - (cw // 2)
+            y = (height - ch) // 2 - 4 + secrets.randbelow(6) - 3
+        else:
+            x = x_base - 6
+            y = (height // 2) - 10 + secrets.randbelow(6) - 3
+
         color = (secrets.randbelow(60), secrets.randbelow(60), secrets.randbelow(60))
-        # Multi-pass text rendering for thicker/larger crisp letters
-        for dx in range(3):
-            for dy in range(3):
-                draw.text((x + dx, y + dy), char, fill=color, font=font)
+        if is_truetype:
+            draw.text((x, y), char, fill=color, font=font)
+        else:
+            for dx in range(3):
+                for dy in range(3):
+                    draw.text((x + dx, y + dy), char, fill=color, font=font)
 
     buf = io.BytesIO()
     image.save(buf, format='PNG')
