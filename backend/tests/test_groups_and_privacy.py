@@ -151,3 +151,30 @@ def test_admin_and_moderator_group_post_access(client, get_db_session):
     admin_single = client.get(f"/api/posts/{post_id}", headers=headers_admin)
     assert admin_single.status_code == 200
     assert admin_single.json()["content"] == "Secret post inside private group"
+
+
+def test_delete_group(client):
+    headers_creator, _ = create_and_login_user(client, "del_creator", "del_creator@test.com")
+    headers_other, _ = create_and_login_user(client, "del_other", "del_other@test.com")
+
+    # 1. Create a group
+    g_res = client.post("/api/groups", headers=headers_creator, json={
+        "name": "Group to Delete",
+        "description": "Will be deleted",
+        "is_private": False
+    })
+    assert g_res.status_code == 201
+    group_id = g_res.json()["id"]
+
+    # 2. Non-creator non-staff cannot delete group
+    forbidden_res = client.delete(f"/api/groups/{group_id}", headers=headers_other)
+    assert forbidden_res.status_code == 403
+
+    # 3. Creator can delete group
+    del_res = client.delete(f"/api/groups/{group_id}", headers=headers_creator)
+    assert del_res.status_code == 200
+
+    # 4. Group no longer exists
+    get_res = client.get(f"/api/groups/{group_id}", headers=headers_creator)
+    assert get_res.status_code == 404
+

@@ -196,7 +196,7 @@ async function loadGroups() {
                 Created by <strong>@${escapeHtml(g.creator_username)}</strong> &bull; ${g.member_count} Members
               </div>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; margin-left: auto;">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; margin-left: auto; flex-wrap: wrap;">
               ${actionBtnHtml}
               <a href="/groups/${g.id}" class="btn btn-secondary btn-sm" style="text-decoration: none; white-space: nowrap;">
                 View Group Posts 💬

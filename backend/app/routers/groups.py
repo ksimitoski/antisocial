@@ -206,6 +206,29 @@ def update_group(
     }
 
 
+@router.delete("/{group_id}")
+def delete_group(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    is_creator = group.creator_id == current_user.id
+    is_staff = privacy.is_admin_or_moderator(db, current_user.id)
+
+    if not (is_creator or is_staff):
+        raise HTTPException(status_code=403, detail="Only the group creator or system staff can delete this group")
+
+    db.delete(group)
+    db.commit()
+
+    return {"message": f"Group '{group.name}' has been deleted successfully"}
+
+
+
 @router.post("/{group_id}/join")
 def join_group(
     group_id: int,

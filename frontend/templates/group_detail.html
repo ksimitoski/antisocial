@@ -78,6 +78,16 @@
               <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
             </div>
           </form>
+
+          <div id="danger-zone-settings" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: none;">
+            <h4 style="color: var(--primary-red); font-size: 0.95rem; margin-bottom: 0.5rem;">⚠️ Danger Zone</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem;">
+              Permanently delete this group, including its member roster, posts, and comments. This action cannot be undone.
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" onclick="deleteCurrentGroup()" style="background: var(--primary-red); border-color: var(--primary-red);">
+              🗑️ Delete Group Permanently
+            </button>
+          </div>
         </div>
 
         <!-- 2. Requests Tab -->
@@ -283,7 +293,7 @@ async function loadGroupDetails() {
             Created by <strong>@${escapeHtml(currentGroupData.creator_username)}</strong> &bull; ${currentGroupData.member_count} Members
           </div>
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
           ${actionBtnHtml}
           <a href="{{ url_for('groups') }}" class="btn btn-secondary">← All Groups</a>
         </div>
@@ -292,11 +302,15 @@ async function loadGroupDetails() {
 
     // Populate and show Admin Panel if user is Group Admin/Creator
     const adminPanel = document.getElementById('group-admin-panel');
+    const dangerZone = document.getElementById('danger-zone-settings');
     if (currentGroupData.is_admin || currentGroupData.is_creator) {
       adminPanel.style.display = 'block';
       document.getElementById('edit-group-name').value = currentGroupData.name || '';
       document.getElementById('edit-group-desc').value = currentGroupData.description || '';
       document.getElementById('edit-group-private').checked = !!currentGroupData.is_private;
+      if (dangerZone) {
+        dangerZone.style.display = (currentGroupData.is_creator || currentGroupData.is_staff) ? 'block' : 'none';
+      }
 
       renderAdminRequests(currentGroupData.join_requests || []);
       renderAdminMembers(currentGroupData.members || []);
@@ -368,6 +382,34 @@ async function toggleGroupMembership(join) {
   } catch (err) {
     showCustomAlert("Error updating group membership: " + err.message, "Network Error");
   }
+}
+
+async function deleteCurrentGroup() {
+  const groupName = currentGroupData ? currentGroupData.name : 'this group';
+  showCustomConfirm(
+    `Are you sure you want to permanently delete '${escapeHtml(groupName)}'? All posts, comments, and member rosters will be removed. This cannot be undone.`,
+    "Delete Group",
+    async () => {
+      try {
+        const res = await fetch(`/api/groups/${groupId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showCustomAlert(data.message || "Group deleted successfully.", "Group Deleted", () => {
+            window.location.href = '/groups';
+          });
+        } else {
+          showCustomAlert(data.detail || "Failed to delete group", "Error");
+        }
+      } catch (err) {
+        showCustomAlert("Error deleting group: " + err.message, "Network Error");
+      }
+    },
+    "Delete Group",
+    "btn-primary"
+  );
 }
 
 /* Admin Panel Functions */
