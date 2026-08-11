@@ -623,6 +623,27 @@ function formatDateTime(isoStr, customTz = null) {
   }
 }
 
+function formatTimeAgo(isoStr) {
+  if (!isoStr) return '';
+  const dateStr = String(isoStr);
+  const date = new Date(dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z');
+  if (isNaN(date.getTime())) return isoStr;
+
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffSec < 10) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return formatDateTime(isoStr);
+}
+
 async function loadUserTimezoneCache() {
   if (localStorage.getItem('user_timezone')) return;
   try {

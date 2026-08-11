@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Activity & Notifications - Antisocial{% endblock %}
+
+{% block content %}
+<div style="max-width: 750px; margin: 0 auto;">
+
+  <div class="card" style="margin-bottom: 1.25rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+      <h2 style="color: var(--primary-red); margin: 0; display: inline-flex; align-items: center; gap: 0.4rem; font-size: clamp(1.05rem, 3.8vw, 1.35rem); white-space: nowrap;">
+        <span>🔔</span> <span>Activity & Notifications</span>
+      </h2>
+      <button onclick="resetAndLoadActivity(currentActivityFilter)" class="btn btn-secondary btn-sm" style="font-size: 0.82rem; padding: 0.25rem 0.65rem; white-space: nowrap;">
+        🔄 Refresh
+      </button>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="activity-tabs" style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem;">
+      <button type="button" class="btn btn-primary btn-sm activity-tab-btn active" data-filter="all" onclick="switchActivityTab('all')">All</button>
+      <button type="button" class="btn btn-secondary btn-sm activity-tab-btn" data-filter="likes" onclick="switchActivityTab('likes')">❤️ Likes</button>
+      <button type="button" class="btn btn-secondary btn-sm activity-tab-btn" data-filter="comments" onclick="switchActivityTab('comments')">💬 Comments</button>
+      <button type="button" class="btn btn-secondary btn-sm activity-tab-btn" data-filter="messages" onclick="switchActivityTab('messages')">📬 Messages</button>
+      <button type="button" class="btn btn-secondary btn-sm activity-tab-btn" data-filter="friends" onclick="switchActivityTab('friends')">👥 Friends</button>
+    </div>
+
+    <!-- Activity Items Container -->
+    <div id="activity-loading" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">
+      Loading activity...
+    </div>
+
+    <div id="activity-list" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentActivityFilter = 'all';
+  let activityOffset = 0;
+  const activityLimit = 100;
+  let isLoadingActivity = false;
+  let hasMoreActivity = true;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    resetAndLoadActivity(currentActivityFilter);
+    setupScrollPagination();
+  });
+
+  function setupScrollPagination() {
+    window.addEventListener('scroll', () => {
+      if (isLoadingActivity || !hasMoreActivity) return;
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const threshold = document.body.offsetHeight - 400;
+      if (scrollPosition >= threshold) {
+        loadMoreActivity();
+      }
+    });
+  }
+
+  function switchActivityTab(filter) {
+    currentActivityFilter = filter;
+    document.querySelectorAll('.activity-tab-btn').forEach(btn => {
+      if (btn.getAttribute('data-filter') === filter) {
+        btn.classList.add('btn-primary', 'active');
+        btn.classList.remove('btn-secondary');
+      } else {
+        btn.classList.remove('btn-primary', 'active');
+        btn.classList.add('btn-secondary');
+      }
+    });
+    resetAndLoadActivity(filter);
+  }
+
+  function resetAndLoadActivity(filter = 'all') {
+    activityOffset = 0;
+    hasMoreActivity = true;
+    const listEl = document.getElementById('activity-list');
+    if (listEl) listEl.innerHTML = '';
+    loadMoreActivity();
+  }
+
+  async function loadMoreActivity() {
+    if (isLoadingActivity || !hasMoreActivity) return;
+
+    const listEl = document.getElementById('activity-list');
+    const loadingEl = document.getElementById('activity-loading');
+    if (!listEl) return;
+
+    isLoadingActivity = true;
+    if (loadingEl) {
+      loadingEl.textContent = 'Loading activity...';
+      loadingEl.style.display = 'block';
+    }
+
+    try {
+      const res = await fetch(`/api/notifications/activity?filter_type=${encodeURIComponent(currentActivityFilter)}&offset=${activityOffset}&limit=${activityLimit}`);
+      if (!res.ok) {
+        if (loadingEl) loadingEl.textContent = 'Failed to load activity.';
+        isLoadingActivity = false;
+        return;
+      }
+
+      const data = await res.json();
+      const items = data.activity || [];
+      hasMoreActivity = !!data.has_more;
+      activityOffset += items.length;
+
+      if (loadingEl) loadingEl.style.display = 'none';
+
+      if (items.length === 0 && activityOffset === 0) {
+        listEl.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 2.5rem 1rem;">
+            <p style="font-size: 1.1rem; margin-bottom: 0.3rem;">No activity yet</p>
+            <p style="font-size: 0.85rem;">When people interact with your posts, comments, or send you messages, they will appear here.</p>
+          </div>
+        `;
+        isLoadingActivity = false;
+        return;
+      }
+
+      const htmlChunk = items.map(renderActivityItemHtml).join('');
+      listEl.insertAdjacentHTML('beforeend', htmlChunk);
+
+      if (!hasMoreActivity && listEl.children.length > 0) {
+        if (loadingEl) {
+          loadingEl.textContent = 'End of activity history.';
+          loadingEl.style.display = 'block';
+        }
+      }
+    } catch (err) {
+      console.error('Error loading activity feed:', err);
+      if (loadingEl) loadingEl.textContent = 'Error loading activity.';
+    } finally {
+      isLoadingActivity = false;
+    }
+  }
+
+  function renderActivityItemHtml(item) {
+    let icon = '🔔';
+    let targetUrl = '#';
+    if (item.type === 'like') {
+      icon = '❤️';
+      targetUrl = `/post/${item.post_id}`;
+    } else if (item.type === 'comment') {
+      icon = '💬';
+      targetUrl = `/post/${item.post_id}`;
+    } else if (item.type === 'message') {
+      icon = '📬';
+      targetUrl = '/messages';
+    } else if (item.type === 'friend_request' || item.type === 'friend_accept') {
+      icon = '👥';
+      targetUrl = `/profile/${encodeURIComponent(item.actor_username)}`;
+    }
+
+    const timeAgo = formatTimeAgo(item.created_at);
+    const initial = (item.actor_username || 'U')[0].toUpperCase();
+
+    const avatarHtml = item.actor_avatar_url
+      ? `<img src="${escapeHtml(item.actor_avatar_url)}" style="width:100%;height:100%;object-fit:cover;" />`
+      : escapeHtml(initial);
+
+    const previewText = item.content
+      ? `<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; background: var(--bg-color); padding: 0.4rem 0.65rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary-red);">${escapeHtml(item.content.length > 120 ? item.content.substring(0, 117) + '...' : item.content)}</div>`
+      : '';
+
+    return `
+      <a href="${targetUrl}" style="text-decoration: none; color: inherit; display: flex; gap: 0.85rem; padding: 0.85rem; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); transition: var(--transition);" class="activity-item-card">
+        <div style="position: relative; flex-shrink: 0;">
+          <div class="user-avatar" style="width: 44px; height: 44px; font-size: 1.1rem; overflow: hidden;">
+            ${avatarHtml}
+          </div>
+          <span style="position: absolute; bottom: -2px; right: -2px; font-size: 0.85rem; background: var(--card-bg); border-radius: 50%; padding: 1px;">${icon}</span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;">
+            <div style="font-size: 0.92rem; font-weight: 600; color: var(--text-main);">
+              ${escapeHtml(item.actor_display_name)} <span style="font-weight: 400; color: var(--text-muted); font-size: 0.88rem;">@${escapeHtml(item.actor_username)}</span>
+            </div>
+            <div style="font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">${timeAgo}</div>
+          </div>
+          <div style="font-size: 0.88rem; color: var(--text-main); margin-top: 0.15rem;">
+            ${escapeHtml(item.action_text)}
+          </div>
+          ${previewText}
+        </div>
+      </a>
+    `;
+  }
+</script>
+{% endblock %}

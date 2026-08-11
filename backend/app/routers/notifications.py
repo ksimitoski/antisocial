@@ -130,6 +130,24 @@ def poll_notifications(
                         "created_at": p.created_at.isoformat()
                     })
 
+    likes_list = []
+    likes = db.query(models.Like).join(models.Post).filter(
+        models.Post.author_id == current_user.id,
+        models.Like.user_id != current_user.id,
+        models.Like.created_at > since_dt
+    ).order_by(models.Like.created_at.asc()).all()
+
+    for l in likes:
+        u = l.user
+        p = u.profile if u else None
+        likes_list.append({
+            "id": l.id,
+            "user_username": u.username if u else "Unknown",
+            "user_display_name": (p.display_name if p and p.display_name else u.username) if u else "Unknown",
+            "post_id": l.post_id,
+            "created_at": l.created_at.isoformat() if l.created_at else datetime.datetime.utcnow().isoformat()
+        })
+
     return {
         "server_time": now_utc.isoformat(),
         "notify_messages": notify_messages,
@@ -138,7 +156,174 @@ def poll_notifications(
         "obscure_notification_content": obscure_notification_content,
         "messages": messages_list,
         "comments": comments_list,
-        "posts": posts_list
+        "posts": posts_list,
+        "likes": likes_list
+    }
+
+
+def cleanup_old_activity(db: Session):
+    cutoff_dt = datetime.datetime.utcnow() - datetime.timedelta(days=180)
+    try:
+        db.query(models.Like).filter(models.Like.created_at < cutoff_dt).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+@router.post("/cleanup")
+def cleanup_activity_endpoint(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    cutoff_dt = datetime.datetime.utcnow() - datetime.timedelta(days=180)
+    deleted_likes = db.query(models.Like).filter(models.Like.created_at < cutoff_dt).delete(synchronize_session=False)
+    db.commit()
+    return {"message": f"Deleted activity items older than 180 days ({deleted_likes} likes deleted)."}
+
+
+@router.get("/activity")
+def get_activity_feed(
+    filter_type: Optional[str] = Query("all"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    cleanup_old_activity(db)
+    cutoff_dt = datetime.datetime.utcnow() - datetime.timedelta(days=180)
+
+    activity_items = []
+    f_type = (filter_type or "all").lower().strip()
+    fetch_max = offset + limit
+
+    # 1. Post Likes on current_user's posts
+    if f_type in ["all", "likes"]:
+        likes = db.query(models.Like).join(models.Post).filter(
+            models.Post.author_id == current_user.id,
+            models.Like.user_id != current_user.id,
+            models.Like.created_at >= cutoff_dt
+        ).order_by(models.Like.created_at.desc()).limit(fetch_max).all()
+
+        for l in likes:
+            u = l.user
+            p = u.profile if u else None
+            post = l.post
+            activity_items.append({
+                "id": f"like-{l.id}",
+                "type": "like",
+                "actor_username": u.username if u else "Unknown",
+                "actor_display_name": (p.display_name if p and p.display_name else u.username) if u else "Unknown",
+                "actor_avatar_url": p.avatar_url if p else None,
+                "post_id": l.post_id,
+                "action_text": "liked your post",
+                "content": post.content if post else "",
+                "created_at": l.created_at.isoformat() if l.created_at else datetime.datetime.utcnow().isoformat()
+            })
+
+    # 2. Comments on current_user's posts or replies to current_user's comments
+    if f_type in ["all", "comments"]:
+        post_cmts = db.query(models.Comment).join(models.Post).filter(
+            models.Post.author_id == current_user.id,
+            models.Comment.author_id != current_user.id,
+            models.Comment.created_at >= cutoff_dt
+        ).order_by(models.Comment.created_at.desc()).limit(fetch_max).all()
+
+        reply_cmts = db.query(models.Comment).filter(
+            models.Comment.parent_id.isnot(None),
+            models.Comment.author_id != current_user.id,
+            models.Comment.created_at >= cutoff_dt
+        ).order_by(models.Comment.created_at.desc()).limit(fetch_max).all()
+        reply_cmts_for_user = [
+            c for c in reply_cmts
+            if c.parent and c.parent.author_id == current_user.id
+        ]
+
+        all_cmts_dict = {c.id: c for c in (post_cmts + reply_cmts_for_user)}
+        sorted_cmts = sorted(all_cmts_dict.values(), key=lambda c: c.created_at or datetime.datetime.min, reverse=True)[:fetch_max]
+
+        for c in sorted_cmts:
+            u = c.author
+            p = u.profile if u else None
+            is_reply = bool(c.parent and c.parent.author_id == current_user.id)
+            action_text = "replied to your comment" if is_reply else "commented on your post"
+            activity_items.append({
+                "id": f"comment-{c.id}",
+                "type": "comment",
+                "actor_username": u.username if u else "Unknown",
+                "actor_display_name": (p.display_name if p and p.display_name else u.username) if u else "Unknown",
+                "actor_avatar_url": p.avatar_url if p else None,
+                "post_id": c.post_id,
+                "action_text": action_text,
+                "content": c.content,
+                "created_at": c.created_at.isoformat() if c.created_at else datetime.datetime.utcnow().isoformat()
+            })
+
+    # 3. Direct Messages
+    if f_type in ["all", "messages"]:
+        msgs = db.query(models.DirectMessage).filter(
+            models.DirectMessage.recipient_id == current_user.id,
+            models.DirectMessage.sender_id != current_user.id,
+            models.DirectMessage.created_at >= cutoff_dt
+        ).order_by(models.DirectMessage.created_at.desc()).limit(fetch_max).all()
+
+        for m in msgs:
+            u = m.sender
+            p = u.profile if u else None
+            activity_items.append({
+                "id": f"message-{m.id}",
+                "type": "message",
+                "actor_username": u.username if u else "Unknown",
+                "actor_display_name": (p.display_name if p and p.display_name else u.username) if u else "Unknown",
+                "actor_avatar_url": p.avatar_url if p else None,
+                "action_text": "sent you a message",
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else datetime.datetime.utcnow().isoformat()
+            })
+
+    # 4. Friend Activity
+    if f_type in ["all", "friends"]:
+        friendships = db.query(models.Friendship).filter(
+            ((models.Friendship.addressee_id == current_user.id) | (models.Friendship.requester_id == current_user.id)),
+            models.Friendship.created_at >= cutoff_dt
+        ).order_by(models.Friendship.created_at.desc()).limit(fetch_max).all()
+
+        for f in friendships:
+            if f.addressee_id == current_user.id and f.status == "pending":
+                u = f.requester
+                p = u.profile if u else None
+                activity_items.append({
+                    "id": f"friend-{f.id}",
+                    "type": "friend_request",
+                    "actor_username": u.username if u else "Unknown",
+                    "actor_display_name": (p.display_name if p and p.display_name else u.username) if u else "Unknown",
+                    "actor_avatar_url": p.avatar_url if p else None,
+                    "action_text": "sent you a friend request",
+                    "content": "",
+                    "created_at": f.created_at.isoformat() if f.created_at else datetime.datetime.utcnow().isoformat()
+                })
+            elif f.status == "accepted":
+                other_user = f.requester if f.addressee_id == current_user.id else f.addressee
+                p = other_user.profile if other_user else None
+                activity_items.append({
+                    "id": f"friend-{f.id}",
+                    "type": "friend_accept",
+                    "actor_username": other_user.username if other_user else "Unknown",
+                    "actor_display_name": (p.display_name if p and p.display_name else other_user.username) if other_user else "Unknown",
+                    "actor_avatar_url": p.avatar_url if p else None,
+                    "action_text": "became friends with you",
+                    "content": "",
+                    "created_at": f.created_at.isoformat() if f.created_at else datetime.datetime.utcnow().isoformat()
+                })
+
+    # Sort all items by created_at descending
+    activity_items.sort(key=lambda x: x["created_at"], reverse=True)
+    sliced_items = activity_items[offset : offset + limit]
+
+    return {
+        "activity": sliced_items,
+        "has_more": len(sliced_items) == limit,
+        "offset": offset,
+        "limit": limit
     }
 
 

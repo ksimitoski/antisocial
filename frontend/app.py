@@ -315,6 +315,12 @@ def feed():
         return redirect(url_for("login"))
     return render_template("feed.html")
 
+@app.route("/activity")
+def activity_page():
+    if not session.get("access_token"):
+        return redirect(url_for("login"))
+    return render_template("activity.html")
+
 @app.route("/post/<int:post_id>")
 def view_post(post_id):
     return render_template("post_detail.html", post_id=post_id)

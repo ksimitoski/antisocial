@@ -114,23 +114,25 @@
 
     <ul id="nav-links" class="nav-links">
       {% if current_user %}
-        <li><a href="{{ url_for('feed') }}">Feed 📰</a></li>
-        <li><a href="{{ url_for('profile', username=current_user.username) }}">Profile 👤</a></li>
-        <li><a href="{{ url_for('friends') }}">Friends 👥</a></li>
-        <li><a href="{{ url_for('groups') }}">Groups 🏘️</a></li>
+        <li><a href="{{ url_for('feed') }}" title="Feed" class="nav-link-item"><span class="nav-icon">📰</span><span class="nav-text">Feed</span></a></li>
+        <li><a href="{{ url_for('activity_page') }}" title="Activity" class="nav-link-item"><span class="nav-icon">🔔</span><span class="nav-text">Activity</span></a></li>
+        <li><a href="{{ url_for('profile', username=current_user.username) }}" title="Profile" class="nav-link-item"><span class="nav-icon">👤</span><span class="nav-text">Profile</span></a></li>
+        <li><a href="{{ url_for('friends') }}" title="Friends" class="nav-link-item"><span class="nav-icon">👥</span><span class="nav-text">Friends</span></a></li>
+        <li><a href="{{ url_for('groups') }}" title="Groups" class="nav-link-item"><span class="nav-icon">🏘️</span><span class="nav-text">Groups</span></a></li>
         <li>
-          <a href="{{ url_for('messages_page') }}" style="display: flex; align-items: center; gap: 0.35rem;">
-            Messages 💬
-            <span id="global-unread-badge" class="badge-visibility" style="display: none; background: var(--primary-red); color: white; border: none; padding: 0.1rem 0.4rem; font-size: 0.72rem; font-weight: 700;">0</span>
+          <a href="{{ url_for('messages_page') }}" title="Messages" class="nav-link-item">
+            <span class="nav-icon">💬</span>
+            <span class="nav-text">Messages</span>
+            <span id="global-unread-badge" class="badge-visibility" style="display: none; background: var(--primary-red); color: white; border: none; padding: 0.1rem 0.4rem; font-size: 0.72rem; font-weight: 700; border-radius: 9999px;">0</span>
           </a>
         </li>
-        <li><a href="{{ url_for('settings') }}">Settings ⚙️</a></li>
+        <li><a href="{{ url_for('settings') }}" title="Settings" class="nav-link-item"><span class="nav-icon">⚙️</span><span class="nav-text">Settings</span></a></li>
         {% if current_user.is_admin %}
-          <li><a href="{{ url_for('admin') }}" style="color: var(--primary-red); font-weight:700;">Admin 🛡️</a></li>
+          <li><a href="{{ url_for('admin') }}" title="Admin" class="nav-link-item" style="color: var(--primary-red); font-weight:700;"><span class="nav-icon">🛡️</span><span class="nav-text">Admin</span></a></li>
         {% endif %}
-        <li><a href="{{ url_for('logout') }}" style="color: #ef4444;">Logout 🚪</a></li>
+        <li><a href="{{ url_for('logout') }}" title="Logout" class="nav-link-item" style="color: #ef4444;"><span class="nav-icon">🚪</span><span class="nav-text">Logout</span></a></li>
       {% else %}
-        <li><a href="{{ url_for('login') }}">Login 🔑</a></li>
+        <li><a href="{{ url_for('login') }}" title="Login" class="nav-link-item"><span class="nav-icon">🔑</span><span class="nav-text">Login</span></a></li>
         <li><a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Sign Up ✨</a></li>
       {% endif %}
 
@@ -220,9 +222,9 @@
         <span class="nav-icon">🏘️</span>
         <span>Groups</span>
       </a>
-      <a href="{{ url_for('profile', username=current_user.username) }}" class="mobile-nav-item {% if request.endpoint == 'profile' %}active{% endif %}">
-        <span class="nav-icon">👤</span>
-        <span>Profile</span>
+      <a href="{{ url_for('activity_page') }}" class="mobile-nav-item {% if request.endpoint == 'activity_page' %}active{% endif %}">
+        <span class="nav-icon">🔔</span>
+        <span>Activity</span>
       </a>
     </nav>
   {% endif %}

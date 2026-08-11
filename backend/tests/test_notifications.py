@@ -90,6 +90,74 @@ def test_notification_settings_and_polling(client):
     assert len(data2["comments"]) == 1
     assert data2["comments"][0]["content"] == "Great post user 1!"
 
+def test_activity_feed_and_like_notifications(client):
+    h1, u1_id = create_and_login_user(client, "act_user1", "act_user1@example.com")
+    h2, u2_id = create_and_login_user(client, "act_user2", "act_user2@example.com")
+
+    # User 1 creates post
+    p_res = client.post("/api/posts", data={"content": "Activity test post"}, headers=h1)
+    assert p_res.status_code == 201
+    post_id = p_res.json()["post_id"]
+
+    # User 2 likes User 1's post
+    like_res = client.post(f"/api/posts/{post_id}/like", headers=h2)
+    assert like_res.status_code == 200
+
+    # User 2 comments on User 1's post
+    c_res = client.post(f"/api/posts/{post_id}/comments", json={"content": "Cool post!"}, headers=h2)
+    assert c_res.status_code == 200
+
+    # Poll notifications for User 1 should include likes
+    poll_res = client.get("/api/notifications/poll", headers=h1)
+    assert poll_res.status_code == 200
+    poll_data = poll_res.json()
+    assert "likes" in poll_data
+    assert len(poll_data["likes"]) == 1
+    assert poll_data["likes"][0]["user_username"] == "act_user2"
+
+    # User 1 requests activity feed
+    act_res = client.get("/api/notifications/activity?filter_type=all", headers=h1)
+    assert act_res.status_code == 200
+    act_data = act_res.json()
+    assert "activity" in act_data
+    items = act_data["activity"]
+    assert len(items) >= 2
+    types = [item["type"] for item in items]
+    assert "like" in types
+    assert "comment" in types
+
+def test_activity_180_day_retention_cleanup(client, get_db_session):
+    from app import models
+    import datetime
+
+    h1, u1_id = create_and_login_user(client, "old_act1", "old_act1@example.com")
+    h2, u2_id = create_and_login_user(client, "old_act2", "old_act2@example.com")
+
+    # User 1 creates post
+    p_res = client.post("/api/posts", data={"content": "Old activity test post"}, headers=h1)
+    assert p_res.status_code == 201
+    post_id = p_res.json()["post_id"]
+
+    # User 2 likes User 1's post
+    like_res = client.post(f"/api/posts/{post_id}/like", headers=h2)
+    assert like_res.status_code == 200
+
+    # Backdate the like to 200 days ago
+    db = get_db_session()
+    try:
+        old_date = datetime.datetime.utcnow() - datetime.timedelta(days=200)
+        db.query(models.Like).filter(models.Like.post_id == post_id, models.Like.user_id == u2_id).update({"created_at": old_date})
+        db.commit()
+    finally:
+        db.close()
+
+    # Request activity feed: the 200-day old like should be cleaned up and not returned
+    act_res = client.get("/api/notifications/activity?filter_type=all", headers=h1)
+    assert act_res.status_code == 200
+    items = act_res.json()["activity"]
+    like_items = [i for i in items if i["type"] == "like" and i["post_id"] == post_id]
+    assert len(like_items) == 0
+
 def test_avatar_upload_image_scaling(client):
     import io, os
     from PIL import Image
