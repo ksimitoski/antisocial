@@ -902,66 +902,16 @@ function triggerTwitterWidgetsLoad() {
   }
 }
 
-function sanitizePostHtml(html) {
-  if (!html) return '';
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'SPAN', 'BLOCKQUOTE']);
-
-    function cleanNode(node) {
-      const children = Array.from(node.childNodes);
-      children.forEach(child => {
-        if (child.nodeType === Node.ELEMENT_NODE) {
-          if (!allowedTags.has(child.tagName)) {
-            const textNode = doc.createTextNode(child.textContent);
-            child.parentNode.replaceChild(textNode, child);
-          } else {
-            const attrs = Array.from(child.attributes);
-            attrs.forEach(attr => {
-              if (child.tagName === 'A') {
-                if (!['href', 'target', 'rel', 'title'].includes(attr.name.toLowerCase())) {
-                  child.removeAttribute(attr.name);
-                }
-              } else {
-                child.removeAttribute(attr.name);
-              }
-            });
-
-            if (child.tagName === 'A') {
-              let href = child.getAttribute('href') || '';
-              if (href && !href.match(/^(https?:\/\/|\/|mailto:)/i)) {
-                if (href.match(/^www\./i)) {
-                  href = 'http://' + href;
-                } else {
-                  href = 'https://' + href;
-                }
-                child.setAttribute('href', href);
-              }
-              child.setAttribute('target', '_blank');
-              child.setAttribute('rel', 'noopener noreferrer');
-            }
-
-            cleanNode(child);
-          }
-        }
-      });
-    }
-
-    cleanNode(doc.body);
-    return doc.body.innerHTML;
-  } catch (e) {
-    return escapeHtml(html);
-  }
+function sanitizePostHtml(rawText) {
+  if (!rawText) return '';
+  return escapeHtmlText(rawText);
 }
 
-function autolinkPlainUrls(html) {
-  if (!html) return '';
-  const combinedRegex = /(<a\s+[^>]*>[\s\S]*?<\/a>)|((?:https?:\/\/|www\.)[^\s<]+[^\s<.,:;"')\]>])/gi;
+function autolinkPlainUrls(text) {
+  if (!text) return '';
+  const urlRegex = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,:;"')\]>]/gi;
 
-  return html.replace(combinedRegex, (match, aTag, url) => {
-    if (aTag) return aTag;
-
+  return text.replace(urlRegex, (url) => {
     let href = url;
     if (url.toLowerCase().startsWith('www.')) {
       href = 'http://' + url;
@@ -1126,35 +1076,11 @@ const WYSIWYG_EMOJIS = [
   { char: "🎧", name: "Headphones", keywords: "music listen audio" }
 ];
 
-function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?") {
+function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?", isCompact = false) {
   const wrapper = document.getElementById(wrapperId);
   if (!wrapper) return null;
 
-  wrapper.innerHTML = `
-    <div class="wysiwyg-container">
-      <div class="wysiwyg-toolbar">
-        <button type="button" class="wysiwyg-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
-        <button type="button" class="wysiwyg-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
-        <button type="button" class="wysiwyg-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
-        <button type="button" class="wysiwyg-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
-        <span class="wysiwyg-divider"></span>
-        <button type="button" class="wysiwyg-btn wysiwyg-link-btn" title="Insert Link (Ctrl+K)">🔗 Link</button>
-        <div class="wysiwyg-emoji-menu-wrapper">
-          <button type="button" class="wysiwyg-btn wysiwyg-emoji-btn" title="Insert Emoji">😀</button>
-          <div class="wysiwyg-emoji-menu">
-            <div class="emoji-menu-header">
-              <input type="text" class="emoji-search-input" placeholder="🔍 Search emojis...">
-            </div>
-            <div class="emoji-menu-grid"></div>
-            <div class="emoji-hover-footer">Hover over an emoji</div>
-          </div>
-        </div>
-      </div>
-      <div class="wysiwyg-editor" contenteditable="true" data-placeholder="${escapeHtmlAttr(placeholderText)}"></div>
-      <div class="char-counter wysiwyg-char-counter" style="text-align: right; margin-top: 0.25rem; font-size: 0.78rem;">0 / 10,000</div>
-      <input type="hidden" class="wysiwyg-hidden-input" name="content">
-    </div>
-  `;
+  wrapper.innerHTML = `<div class="wysiwyg-container ${isCompact ? 'wysiwyg-compact' : ''}" style="white-space: normal;"><div class="wysiwyg-toolbar" style="white-space: normal;"><button type="button" class="wysiwyg-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button><button type="button" class="wysiwyg-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button><button type="button" class="wysiwyg-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button><button type="button" class="wysiwyg-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button><span class="wysiwyg-divider"></span><button type="button" class="wysiwyg-btn wysiwyg-link-btn" title="Insert Link (Ctrl+K)">🔗 Link</button><div class="wysiwyg-emoji-menu-wrapper"><button type="button" class="wysiwyg-btn wysiwyg-emoji-btn" title="Insert Emoji">😀</button><div class="wysiwyg-emoji-menu"><div class="emoji-menu-header"><input type="text" class="emoji-search-input" placeholder="🔍 Search emojis..."></div><div class="emoji-menu-grid"></div><div class="emoji-hover-footer">Hover over an emoji</div></div></div></div><div class="wysiwyg-editor" contenteditable="true" data-placeholder="${escapeHtmlAttr(placeholderText)}"></div><div class="char-counter wysiwyg-char-counter" style="text-align: right; margin-top: 0.25rem; font-size: 0.78rem;">0 / 10,000</div><input type="hidden" class="wysiwyg-hidden-input" name="content"></div>`;
 
   const toolbar = wrapper.querySelector('.wysiwyg-toolbar');
   const editor = wrapper.querySelector('.wysiwyg-editor');
@@ -1162,13 +1088,12 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?")
   const wysiwygCounter = wrapper.querySelector('.wysiwyg-char-counter');
 
   function syncContent() {
-    let html = editor.innerHTML;
-    if (html === '<br>' || html.trim() === '') {
-      html = '';
+    let rawText = editor.innerText || editor.textContent || '';
+    if (rawText.trim() === '') {
+      rawText = '';
     }
-    hiddenInput.value = html;
+    hiddenInput.value = rawText;
 
-    const rawText = editor.innerText || editor.textContent || '';
     const len = rawText.length;
     if (wysiwygCounter) {
       wysiwygCounter.textContent = `${len.toLocaleString()} / 10,000`;
@@ -1462,6 +1387,78 @@ function openWysiwygLinkModal(editor, syncCallback) {
 
   urlInput.onkeydown = keyHandler;
   textInput.onkeydown = keyHandler;
+}
+
+// -------------------------------------------------------------
+// Central Post Editing with WYSIWYG Editor
+// -------------------------------------------------------------
+
+const activePostEditWysiwygMap = {};
+
+function enablePostEdit(postId) {
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (!contentEl) return;
+
+  const rawText = contentEl.getAttribute('data-raw-content') || contentEl.innerText || '';
+
+  contentEl.innerHTML = `<div id="post-edit-box-${postId}" style="margin: 0.25rem 0; white-space: normal;"><div id="post-edit-wysiwyg-wrapper-${postId}"></div><div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.4rem;"><button type="button" onclick="cancelPostEdit(${postId})" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.82rem;">Cancel</button><button type="button" onclick="submitPostEdit(${postId})" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.82rem;">Save Edit</button></div></div>`;
+
+  const wysiwyg = setupWysiwygEditor(`post-edit-wysiwyg-wrapper-${postId}`, "Edit your post...", true);
+  if (wysiwyg) {
+    wysiwyg.setContent(rawText);
+    activePostEditWysiwygMap[postId] = wysiwyg;
+    if (wysiwyg.editor) {
+      wysiwyg.editor.focus();
+    }
+  }
+}
+
+async function submitPostEdit(postId) {
+  const wysiwyg = activePostEditWysiwygMap[postId];
+  let newContent = '';
+  if (wysiwyg) {
+    newContent = wysiwyg.getContent().trim();
+  } else {
+    const input = document.getElementById(`post-edit-input-${postId}`);
+    newContent = input ? input.value.trim() : '';
+  }
+
+  const token = document.body.getAttribute('data-token') || (typeof token !== 'undefined' ? token : null);
+
+  try {
+    const res = await fetch(`/api/posts/${postId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content: newContent })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      delete activePostEditWysiwygMap[postId];
+      const contentEl = document.getElementById(`post-content-text-${postId}`);
+      if (contentEl) {
+        contentEl.setAttribute('data-raw-content', data.content);
+        contentEl.innerHTML = formatPostContent(data.content || '');
+      }
+    } else {
+      const err = await res.json();
+      showCustomAlert(err.detail || "Failed to update post content", "Edit Error");
+    }
+  } catch (err) {
+    showCustomAlert("Error updating post: " + err.message, "Network Error");
+  }
+}
+
+function cancelPostEdit(postId) {
+  delete activePostEditWysiwygMap[postId];
+  const contentEl = document.getElementById(`post-content-text-${postId}`);
+  if (contentEl) {
+    const rawText = contentEl.getAttribute('data-raw-content') || '';
+    contentEl.innerHTML = formatPostContent(rawText);
+  }
 }
 
 // -------------------------------------------------------------

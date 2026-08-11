@@ -11,18 +11,66 @@
       } catch (e) {}
     })();
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap">
   <style>
-    html {
-      background-color: #0b0f19;
-      color-scheme: dark;
-    }
-    html[data-theme="light"] {
-      background-color: #f1f5f9;
+    :root {
       color-scheme: light;
+      --primary-red: #dc2626;
+      --primary-red-hover: #b91c1c;
+      --primary-red-light: #fee2e2;
+      --primary-red-glow: rgba(220, 38, 38, 0.25);
+      --bg-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --border-color: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --input-bg: #f8fafc;
+      --nav-bg: rgba(255, 255, 255, 0.92);
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      --radius-full: 9999px;
     }
-    html[data-theme="dark"] {
-      background-color: #0b0f19;
+    [data-theme="dark"] {
       color-scheme: dark;
+      --bg-color: #0b0f19;
+      --card-bg: #151d2a;
+      --border-color: #232e42;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --input-bg: #1e293b;
+      --nav-bg: rgba(15, 23, 42, 0.85);
+      --primary-red-light: rgba(220, 38, 38, 0.15);
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .form-control {
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+    }
+    .btn {
+      border-radius: var(--radius-md);
     }
   </style>
   <meta charset="UTF-8">
@@ -30,7 +78,7 @@
   <title>{% block title %}Antisocial{% endblock %}</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.1">
   <style id="custom-accent-style">
     {% if site_settings and site_settings.accent_color %}
       :root, [data-theme="dark"] {
