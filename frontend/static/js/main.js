@@ -902,9 +902,67 @@ function triggerTwitterWidgetsLoad() {
   }
 }
 
-function sanitizePostHtml(rawText) {
-  if (!rawText) return '';
-  return escapeHtmlText(rawText);
+function sanitizePostHtml(html) {
+  if (!html) return '';
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'A', 'BR', 'P', 'DIV', 'SPAN', 'BLOCKQUOTE']);
+
+    function cleanNode(node) {
+      const children = Array.from(node.childNodes);
+      children.forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          if (!allowedTags.has(child.tagName)) {
+            const textNode = doc.createTextNode(child.textContent);
+            child.parentNode.replaceChild(textNode, child);
+          } else {
+            const attrs = Array.from(child.attributes);
+            attrs.forEach(attr => {
+              if (child.tagName === 'A') {
+                if (!['href', 'target', 'rel', 'title'].includes(attr.name.toLowerCase())) {
+                  child.removeAttribute(attr.name);
+                }
+              } else {
+                child.removeAttribute(attr.name);
+              }
+            });
+
+            if (child.tagName === 'A') {
+              let href = child.getAttribute('href') || '';
+              if (href.toLowerCase().trim().startsWith('javascript:') || href.toLowerCase().trim().startsWith('data:')) {
+                href = '#';
+              } else if (href && !href.match(/^(https?:\/\/|\/|mailto:)/i)) {
+                if (href.match(/^www\./i)) {
+                  href = 'http://' + href;
+                } else {
+                  href = 'https://' + href;
+                }
+              }
+              child.setAttribute('href', href);
+              child.setAttribute('target', '_blank');
+              child.setAttribute('rel', 'noopener noreferrer');
+            }
+
+            cleanNode(child);
+          }
+        }
+      });
+    }
+
+    cleanNode(doc.body);
+
+    if (doc.body.children.length === 1) {
+      const first = doc.body.children[0];
+      if ((first.tagName === 'DIV' || first.tagName === 'P') && first.attributes.length === 0) {
+        return first.innerHTML;
+      }
+    }
+
+    return doc.body.innerHTML;
+  } catch (e) {
+    return escapeHtmlText(html);
+  }
 }
 
 function autolinkPlainUrls(text) {
@@ -1088,11 +1146,14 @@ function setupWysiwygEditor(wrapperId, placeholderText = "What's on your mind?",
   const wysiwygCounter = wrapper.querySelector('.wysiwyg-char-counter');
 
   function syncContent() {
+    let html = editor.innerHTML || '';
     let rawText = editor.innerText || editor.textContent || '';
     if (rawText.trim() === '') {
-      rawText = '';
+      html = '';
+    } else {
+      html = sanitizePostHtml(html);
     }
-    hiddenInput.value = rawText;
+    hiddenInput.value = html;
 
     const len = rawText.length;
     if (wysiwygCounter) {
