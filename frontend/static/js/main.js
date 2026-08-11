@@ -835,7 +835,7 @@ function embedYouTubeVideos(htmlContent) {
 
   let embedsHtml = '<div class="post-youtube-embeds">';
   videoIds.forEach(id => {
-    embedsHtml += `<div class="youtube-embed-container"><iframe src="https://www.youtube.com/embed/${id}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+    embedsHtml += `<div class="youtube-embed-container"><iframe src="https://www.youtube.com/embed/${id}" title="YouTube video player" frameborder="0" allow="picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
   });
   embedsHtml += '</div>';
 
