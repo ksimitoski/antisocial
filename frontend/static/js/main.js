@@ -811,6 +811,7 @@ function formatPostContent(rawContent) {
   let clean = sanitizePostHtml(rawContent);
   clean = autolinkPlainUrls(clean);
   clean = embedYouTubeVideos(clean);
+  clean = embedTwitterTweets(clean);
   return clean;
 }
 
@@ -842,12 +843,71 @@ function embedYouTubeVideos(htmlContent) {
   return htmlContent + embedsHtml;
 }
 
+function extractTwitterTweetIds(htmlContent) {
+  if (!htmlContent) return [];
+  const tweets = [];
+  const tweetIds = new Set();
+  const twRegex = /(?:https?:\/\/)?(?:www\.|mobile\.)?(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{1,15})\/status\/(\d+)/gi;
+  let match;
+  while ((match = twRegex.exec(htmlContent)) !== null) {
+    const username = match[1];
+    const tweetId = match[2];
+    if (tweetId && !tweetIds.has(tweetId)) {
+      tweetIds.add(tweetId);
+      tweets.push({ username, tweetId });
+    }
+  }
+  return tweets;
+}
+
+function embedTwitterTweets(htmlContent) {
+  if (!htmlContent) return '';
+  const tweets = extractTwitterTweetIds(htmlContent);
+  if (tweets.length === 0) return htmlContent;
+
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+  let embedsHtml = '<div class="post-twitter-embeds">';
+  tweets.forEach(t => {
+    embedsHtml += `<div class="twitter-embed-container"><blockquote class="twitter-tweet" data-theme="${currentTheme}" data-dnt="true"><a href="https://twitter.com/${t.username}/status/${t.tweetId}"></a></blockquote></div>`;
+  });
+  embedsHtml += '</div>';
+
+  triggerTwitterWidgetsLoad();
+
+  return htmlContent + embedsHtml;
+}
+
+function triggerTwitterWidgetsLoad() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+  if (!document.getElementById('twitter-wjs')) {
+    const script = document.createElement('script');
+    script.id = 'twitter-wjs';
+    script.src = 'https://platform.twitter.com/widgets.js';
+    script.async = true;
+    script.charset = 'utf-8';
+    script.onload = () => {
+      if (window.twttr && window.twttr.widgets) {
+        window.twttr.widgets.load();
+      }
+    };
+    document.head.appendChild(script);
+  } else if (window.twttr && window.twttr.widgets) {
+    setTimeout(() => {
+      try {
+        window.twttr.widgets.load();
+      } catch (e) {}
+    }, 50);
+  }
+}
+
 function sanitizePostHtml(html) {
   if (!html) return '';
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'SPAN']);
+    const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'A', 'BR', 'P', 'DIV', 'SPAN', 'BLOCKQUOTE']);
 
     function cleanNode(node) {
       const children = Array.from(node.childNodes);

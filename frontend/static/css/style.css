@@ -631,6 +631,31 @@ textarea.form-control {
   border: 0;
 }
 
+/* Twitter / X Tweet Embeds */
+.post-twitter-embeds {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.twitter-embed-container {
+  width: 100%;
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+.twitter-embed-container blockquote.twitter-tweet {
+  margin: 0 auto !important;
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+  padding: 0.75rem 1rem;
+  color: var(--text-color, #f8fafc);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
 /* Post Media Player Container */
 .post-media-container {
   margin: 0.85rem 0;
