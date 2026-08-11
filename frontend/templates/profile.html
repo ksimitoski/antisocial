@@ -423,7 +423,7 @@ function renderProfilePostCard(post) {
         <button onclick="toggleProfileLike(${post.id})" class="action-btn like-action-btn ${post.user_has_liked ? 'active' : ''}">
           ${post.user_has_liked ? '❤️' : '🤍'} <span id="likes-count-${post.id}">${post.likes_count}</span> Likes
         </button>
-        <button onclick="sharePost(${post.id}, \`${escapeHtml(post.content || '').replace(/`/g, '\\`')}\`)" class="action-btn share-action-btn">
+        <button onclick="sharePost(${post.id})" class="action-btn share-action-btn">
           🔗 Share
         </button>
         ${editBtn}

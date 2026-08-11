@@ -527,14 +527,13 @@ window.addEventListener('resize', () => {
 
 
 // Global Share Post Helper with Web Share API and Clipboard Fallback
-async function sharePost(postId, postText = '') {
+async function sharePost(postId) {
   const postUrl = `${window.location.origin}/post/${postId}`;
 
   if (navigator.share) {
     try {
       await navigator.share({
         title: 'Antisocial Post',
-        text: postText ? (postText.length > 100 ? postText.substring(0, 97) + '...' : postText) : 'Check out this post on Antisocial!',
         url: postUrl
       });
       return;
