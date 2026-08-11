@@ -810,7 +810,36 @@ function formatPostContent(rawContent) {
   if (!rawContent) return '';
   let clean = sanitizePostHtml(rawContent);
   clean = autolinkPlainUrls(clean);
+  clean = embedYouTubeVideos(clean);
   return clean;
+}
+
+function extractYouTubeVideoIds(htmlContent) {
+  if (!htmlContent) return [];
+  const videoIds = [];
+  const ytRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^"\s>]*&)?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/gi;
+  let match;
+  while ((match = ytRegex.exec(htmlContent)) !== null) {
+    const id = match[1];
+    if (id && !videoIds.includes(id)) {
+      videoIds.push(id);
+    }
+  }
+  return videoIds;
+}
+
+function embedYouTubeVideos(htmlContent) {
+  if (!htmlContent) return '';
+  const videoIds = extractYouTubeVideoIds(htmlContent);
+  if (videoIds.length === 0) return htmlContent;
+
+  let embedsHtml = '<div class="post-youtube-embeds">';
+  videoIds.forEach(id => {
+    embedsHtml += `<div class="youtube-embed-container"><iframe src="https://www.youtube.com/embed/${id}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>`;
+  });
+  embedsHtml += '</div>';
+
+  return htmlContent + embedsHtml;
 }
 
 function sanitizePostHtml(html) {

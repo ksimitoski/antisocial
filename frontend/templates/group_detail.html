@@ -1019,7 +1019,7 @@ async function submitPostEdit(postId) {
       const contentEl = document.getElementById(`post-content-text-${postId}`);
       if (contentEl) {
         contentEl.setAttribute('data-raw-content', data.content);
-        contentEl.innerText = data.content;
+        contentEl.innerHTML = formatPostContent(data.content || '');
       }
     } else {
       const err = await res.json();
@@ -1034,7 +1034,7 @@ function cancelPostEdit(postId) {
   const contentEl = document.getElementById(`post-content-text-${postId}`);
   if (contentEl) {
     const rawText = contentEl.getAttribute('data-raw-content') || '';
-    contentEl.innerText = rawText;
+    contentEl.innerHTML = formatPostContent(rawText);
   }
 }
 
