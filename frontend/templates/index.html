@@ -99,9 +99,6 @@
       mediaHtml = `<div class="post-media-container"><video controls src="${post.media_url}"></video></div>`;
     }
 
-    const commentsHtml = (post.comments || []).map(c => {
-      const cName = c.author_display_name || c.author_username;
-      const cInitial = c.author_username ? c.author_username.charAt(0).toUpperCase() : 'U';
     const commentsHtml = renderCommentTreeHtml(post.comments || [], post.id, null, null, post.author_id);
 
     return `

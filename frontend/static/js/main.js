@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupActivityHeartbeat() {
-  const token = document.body.getAttribute('data-token') || (typeof token !== 'undefined' ? token : null);
+  const token = document.body.getAttribute('data-token') || (typeof window.token !== 'undefined' ? window.token : null);
   if (!token) return;
 
   // Send activity heartbeat ping every 30 seconds (30,000ms)
@@ -110,7 +110,7 @@ async function updateOnlineStatuses() {
 let lastNotificationServerTime = localStorage.getItem('last_notification_server_time') || null;
 
 function setupNotificationPoller() {
-  const token = document.body.getAttribute('data-token') || (typeof token !== 'undefined' ? token : null);
+  const token = document.body.getAttribute('data-token') || (typeof window.token !== 'undefined' ? window.token : null);
   if (!token) return;
 
   setTimeout(pollBrowserNotifications, 3000);
@@ -118,7 +118,7 @@ function setupNotificationPoller() {
 }
 
 async function pollBrowserNotifications() {
-  const token = document.body.getAttribute('data-token') || (typeof token !== 'undefined' ? token : null);
+  const token = document.body.getAttribute('data-token') || (typeof window.token !== 'undefined' ? window.token : null);
   if (!token) return;
 
   try {
@@ -1504,7 +1504,7 @@ async function submitPostEdit(postId) {
     newContent = input ? input.value.trim() : '';
   }
 
-  const token = document.body.getAttribute('data-token') || (typeof token !== 'undefined' ? token : null);
+  const token = document.body.getAttribute('data-token') || (typeof window.token !== 'undefined' ? window.token : null);
 
   try {
     const res = await fetch(`/api/posts/${postId}`, {
